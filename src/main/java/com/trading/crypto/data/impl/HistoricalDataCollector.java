@@ -149,6 +149,7 @@ public class HistoricalDataCollector implements DataCollector {
 
     /**
      * Convert Object to Kline element
+     *
      * @param objects list of Object data per bar
      * @return KlineElement
      */
@@ -157,7 +158,7 @@ public class HistoricalDataCollector implements DataCollector {
                 objects.get(0).toString()), // startTime
                 new BigDecimal(objects.get(1).toString()), // openPrice
                 new BigDecimal(objects.get(2).toString()), // highPrice
-                new BigDecimal(objects.get(3).toString()) , // lowPrice
+                new BigDecimal(objects.get(3).toString()), // lowPrice
                 new BigDecimal(objects.get(4).toString()),  // closePrice
                 new BigDecimal(objects.get(5).toString()), // volume
                 new BigDecimal(objects.get(6).toString())); // turnover

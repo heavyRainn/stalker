@@ -33,3 +33,5 @@ build/
 .vscode/
 
 StalkerLSTMModel.zip
+*_signals.json
+

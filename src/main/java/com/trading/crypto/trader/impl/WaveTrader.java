@@ -3,10 +3,11 @@ package com.trading.crypto.trader.impl;
 import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.analyzer.impl.IndicatorAnalyzer;
 import com.trading.crypto.data.impl.HistoricalDataCollector;
-import com.trading.crypto.data.impl.RealTimeDataStreamer;
 import com.trading.crypto.manager.RiskManager;
 import com.trading.crypto.manager.StrategyManager;
 import com.trading.crypto.model.RiskEvaluation;
+import com.trading.crypto.model.Signal;
+import com.trading.crypto.model.Trade;
 import com.trading.crypto.model.TradeSignal;
 import com.trading.crypto.order.OrderExecutor;
 import com.trading.crypto.trader.Trader;
@@ -17,10 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -31,23 +29,21 @@ public class WaveTrader implements Trader {
     private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES, MarketInterval.HOURLY);
 
     private final HistoricalDataCollector historicalDataCollector;
-    private final RealTimeDataStreamer realTimeDataStreamer;
     private IndicatorAnalyzer indicatorAnalyzer;
     private final OrderExecutor orderExecutor;
     private final RiskManager riskManager;
     private final List<StrategyManager> strategyManagers;
 
     @Autowired
-    public WaveTrader(HistoricalDataCollector hdc, RealTimeDataStreamer rtds, OrderExecutor oe, RiskManager rm, List<StrategyManager> sms) {
+    public WaveTrader(HistoricalDataCollector hdc, OrderExecutor oe, RiskManager rm, List<StrategyManager> sms) {
         this.historicalDataCollector = hdc;
-        this.realTimeDataStreamer = rtds;
         this.orderExecutor = oe;
         this.riskManager = rm;
         this.strategyManagers = sms;
     }
 
     @PostConstruct
-    private void init(){
+    private void init() {
         if (indicatorAnalyzer == null) {
             log.info("Loading....");
             historicalDataCollector.init(symbol, intervals);
@@ -57,8 +53,7 @@ public class WaveTrader implements Trader {
                 @Override
                 public void run() {
                     log.info("Initialization executed after 1 minute delay");
-                    if (historicalDataCollector.getKlineCache().size() != 0)
-                    {
+                    if (historicalDataCollector.getKlineCache().size() != 0) {
                         indicatorAnalyzer = new IndicatorAnalyzer(historicalDataCollector.getKlineCache(), symbol);
                         historicalDataCollector.setAnalyser(indicatorAnalyzer);
                         log.info("IndicatorAnalyzer Initialized!");
@@ -76,42 +71,46 @@ public class WaveTrader implements Trader {
     @Scheduled(fixedRate = 60000)
     public void haunt() {
         if (indicatorAnalyzer == null) {
-            log.info("Loading....");
+            log.info(symbol + " Trader Loading....");
             return;
         }
 
         // Анализ данных индикаторов
-        var indicatorsAnalysisResult = indicatorAnalyzer.calculateIndicators(intervals);
-        LogUtils.logAnalysis(symbol, indicatorsAnalysisResult);
+        Map<MarketInterval, Signal> indicatorsAnalysisResult = indicatorAnalyzer.calculateIndicators(intervals);
+        LogUtils.logAnalysis(indicatorsAnalysisResult);
 
         // Анализ рынка стратегией возможно ИИ
         List<TradeSignal> signals = strategyManagers.stream()
                 .map(manager -> manager.analyzeData(indicatorsAnalysisResult))
                 .filter(Objects::nonNull)
+                .flatMap(List::stream)
                 .collect(Collectors.toList());
+
+        if (signals.size() == 0) {
+            log.info("Haunting....");
+            return;
+        }
+
+        log.info("------------------------------- Signals -----------------------------------------------/");
         LogUtils.logTradeSignals(signals);
+        LogUtils.logTradeSignalsToFile(signals);
 
         // Оценка рисков для выставления сделки
-        var riskEvaluation = riskManager.evaluateRisk(signals, indicatorsAnalysisResult);
-        //log.info("riskEvaluation result: {}", signals);
+        Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult);
+        log.info("Risk Evaluation results: {}", riskEvaluations);
 
-        // принятие решения на основании полученных данных
-        if (riskEvaluation == RiskEvaluation.ACCEPTABLE) {
-            //riskManager.evaluateR
-//            switch (indicatorsAnalysisResult) {
-//                case BUY:
-//                    break;
-//                case SELL:
-//                    break;
-//                case STRONG_BUY:
-//                    break;
-//                case STRONG_SELL:
-//                    break;
-//                case HOLD:
-//                    break;
-//            }
-            log.warn("Risk is Acceptable, can trade!!!");
-        }
+        riskEvaluations.forEach((signal, evaluation) -> {
+            if (RiskEvaluation.ACCEPTABLE.equals(evaluation)) {
+                // Логируем информацию о сигнале
+                LogUtils.logSignalInfo(signal, evaluation);
+
+                Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation);
+                log.warn("Risk for {} is Acceptable, can trade!!!", trade);
+            } else {
+                log.info("Risk for {} is not Acceptable, no trade", signal.getSymbol());
+            }
+        });
+        log.info("---------------------------------------------------------------------------------------/");
     }
 
 

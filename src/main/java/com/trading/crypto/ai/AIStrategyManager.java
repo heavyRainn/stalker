@@ -5,6 +5,7 @@ import com.trading.crypto.data.impl.HistoricalDataCollector;
 import com.trading.crypto.manager.StrategyManager;
 import com.trading.crypto.model.AnalysisResult;
 import com.trading.crypto.model.KlineElement;
+import com.trading.crypto.model.Signal;
 import com.trading.crypto.model.TradeSignal;
 import com.trading.crypto.trader.impl.WaveTrader;
 import com.trading.crypto.util.DataPreparationUtils;
@@ -20,7 +21,6 @@ import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.dataset.api.preprocessor.NormalizerMinMaxScaler;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
-import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,14 +69,16 @@ public class AIStrategyManager implements StrategyManager {
      * @return торговый сигнал
      */
     @Override
-    public TradeSignal analyzeData(Map<MarketInterval, AnalysisResult> indicatorsAnalysisResult) {
+    public List<TradeSignal> analyzeData(Map<MarketInterval, Signal> indicatorsAnalysisResult) {
         // Получаем прогноз цены от модели ИИ
         double prediction = getAIPrediction(WaveTrader.symbol, MarketInterval.ONE_MINUTE);
 
         // Генерация торгового сигнала на основе прогнозов ИИ и результатов индикаторов
         TradeSignal signal = generateTradeSignal(indicatorsAnalysisResult, prediction, "BTCUSDT");
         log.info("Generated Trade Signal: {}", signal);
-        return signal;
+        //return signal;
+
+        return null;
     }
 
     /**
@@ -111,34 +113,32 @@ public class AIStrategyManager implements StrategyManager {
      * @param symbol                   - торговый символ (например, BTCUSDT)
      * @return торговый сигнал
      */
-    private TradeSignal generateTradeSignal(Map<MarketInterval, AnalysisResult> indicatorsAnalysisResult, double aiPrediction, String symbol) {
+    private TradeSignal generateTradeSignal(Map<MarketInterval, Signal> indicatorsAnalysisResult, double aiPrediction, String symbol) {
         // Получаем первичный анализ из результатов индикаторов
-        AnalysisResult primaryAnalysis = indicatorsAnalysisResult.get(MarketInterval.ONE_MINUTE); // Замените на нужный интервал
+        Signal signal = indicatorsAnalysisResult.get(MarketInterval.ONE_MINUTE); // Замените на нужный интервал
 
         // Генерируем и возвращаем торговый сигнал
-        return createTradeSignal(primaryAnalysis, symbol, aiPrediction, 0.05, 0.03, 1000, System.currentTimeMillis());
+        return createTradeSignal(signal, symbol, aiPrediction, 0.05, 0.03, 1000, System.currentTimeMillis());
     }
 
     /**
      * Создание объекта торгового сигнала на основе типа сигнала
      *
-     * @param signalType   - тип сигнала (BUY, SELL, STRONG_BUY, STRONG_SELL)
-     * @param symbol       - торговый символ
-     * @param entryPrice   - цена входа
-     * @param stopLoss     - уровень стоп-лосса
-     * @param takeProfit   - уровень тейк-профита
-     * @param amount       - количество торговых единиц
-     * @param timestamp    - время сигнала
+     * @param symbol     - торговый символ
+     * @param entryPrice - цена входа
+     * @param stopLoss   - уровень стоп-лосса
+     * @param takeProfit - уровень тейк-профита
+     * @param amount     - количество торговых единиц
+     * @param timestamp  - время сигнала
      * @return объект торгового сигнала
      */
-    private TradeSignal createTradeSignal(AnalysisResult signalType, String symbol, double entryPrice, double stopLoss, double takeProfit, double amount, long timestamp) {
-        return switch (signalType) {
+    private TradeSignal createTradeSignal(Signal signal, String symbol, double entryPrice, double stopLoss, double takeProfit, double amount, long timestamp) {
+        return switch (signal.getAnalysisResult()) {
             case STRONG_BUY, BUY ->
-                    new TradeSignal(signalType, symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
+                    new TradeSignal(signal.getAnalysisResult(), symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
             case STRONG_SELL, SELL ->
-                    new TradeSignal(signalType, symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
-            default ->
-                    new TradeSignal(AnalysisResult.HOLD, symbol, 0, 0, 0, 0, timestamp);
+                    new TradeSignal(signal.getAnalysisResult(), symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
+            default -> new TradeSignal(AnalysisResult.HOLD, symbol, 0, 0, 0, 0, timestamp);
         };
     }
 

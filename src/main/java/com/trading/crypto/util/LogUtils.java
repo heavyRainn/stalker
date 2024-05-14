@@ -1,11 +1,22 @@
 package com.trading.crypto.util;
 
 import com.bybit.api.client.domain.market.MarketInterval;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.trading.crypto.model.AnalysisResult;
+import com.trading.crypto.model.RiskEvaluation;
+import com.trading.crypto.model.Signal;
 import com.trading.crypto.model.TradeSignal;
+import com.trading.crypto.trader.impl.WaveTrader;
 import lombok.extern.slf4j.Slf4j;
 import org.ta4j.core.num.Num;
 
+import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -44,25 +55,64 @@ public class LogUtils {
     // Trade Signal Constants
     private static final String TRADE_SIGNAL_FORMAT = "%sSymbol: %s, Type: %s, Entry Price: %.2f, Stop Loss: %.2f, Take Profit: %.2f, Amount: %.2f, Timestamp: %d%s";
 
+    private static final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+
     /**
      * Логирование результатов анализа для каждого временного интервала
      *
-     * @param symbol          - торговый символ (например, BTCUSDT)
      * @param analysisResults - карта результатов анализа для каждого временного интервала
      */
-    public static void logAnalysis(String symbol, Map<MarketInterval, AnalysisResult> analysisResults) {
+    public static void logAnalysis(Map<MarketInterval, Signal> analysisResults) {
         if (analysisResults.isEmpty()) {
             log.info("No analysis results to display.");
             return;
         }
 
-        StringBuilder logMessage = new StringBuilder("\nAnalysis Results for \033[35m").append(symbol).append("\033[0m:");
-        analysisResults.forEach((interval, result) -> {
+        StringBuilder logMessage = new StringBuilder("\nAnalysis Results for \033[35m").append("\033[0m:");
+        analysisResults.forEach((interval, signal) -> {
             logMessage.append("\n\tInterval: \033[35m").append(interval).append("\033[0m")
-                    .append(" - Result: ").append(formatResult(result));
+                    .append(" - Result: ").append(formatResult(signal.getAnalysisResult()))
+                    .append(", Pair: ").append(signal.getAsset())
+                    .append(", Price: ").append(signal.getPrice())
+                    .append(", Timestamp: ").append(formatTimestamp(signal.getTimestamp()));
         });
 
         log.info(logMessage.toString());
+    }
+
+    private static String formatTimestamp(long timestamp) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return sdf.format(new Date(timestamp));
+    }
+
+    /**
+     * Сохранение торговых сигналов в JSON файл
+     *
+     * @param signals список торговых сигналов
+     */
+    public static void logTradeSignalsToFile(List<TradeSignal> signals) {
+        List<TradeSignal> existingSignals = new ArrayList<>();
+
+        // Сначала считываем существующие данные
+        File file = new File(WaveTrader.symbol + "_signals.json");
+        if (file.exists()) {
+            try {
+                existingSignals = mapper.readValue(file, new TypeReference<List<TradeSignal>>() {});
+            } catch (IOException e) {
+                System.err.println("Ошибка при чтении файла: " + e.getMessage());
+            }
+        }
+
+        // Создаем новый список, объединяющий новые и существующие сигналы
+        List<TradeSignal> allSignals = new ArrayList<>(signals);
+        allSignals.addAll(existingSignals);
+
+        // Перезаписываем файл с обновленным списком
+        try {
+            mapper.writeValue(file, allSignals);
+        } catch (IOException e) {
+            System.err.println("Ошибка при записи в файл: " + e.getMessage());
+        }
     }
 
     /**
@@ -124,7 +174,6 @@ public class LogUtils {
      * @param lastRSI              - последнее значение RSI
      * @param lastCCI              - последнее значение CCI
      * @param lastSMA              - последнее значение SMA
-     * @param isPriceBelowSMA      - находится ли цена ниже SMA
      * @param isPriceAboveSMA      - находится ли цена выше SMA
      * @param bullishRsiDivergence - есть ли бычья дивергенция RSI
      * @param bearishRsiDivergence - есть ли медвежья дивергенция RSI
@@ -132,8 +181,7 @@ public class LogUtils {
      * @param bearishCciDivergence - есть ли медвежья дивергенция CCI
      */
     public static void logAnalysis(String symbol, MarketInterval interval,
-                                   Num lastPrice, Num lastRSI, Num lastCCI, Num lastSMA,
-                                   boolean isPriceBelowSMA, boolean isPriceAboveSMA,
+                                   Num lastPrice, Num lastRSI, Num lastCCI, Num lastSMA, boolean isPriceAboveSMA,
                                    Boolean bullishRsiDivergence, Boolean bearishRsiDivergence,
                                    Boolean bullishCciDivergence, Boolean bearishCciDivergence) {
 
@@ -170,19 +218,9 @@ public class LogUtils {
                 BEARISH_CCI, bearishCciDivergence != null && bearishCciDivergence ? PRESENT : ABSENT);
     }
 
-    /**
-     * Логирование индикаторов и тренда (без дивергенций)
-     *
-     * @param symbol          - торговый символ
-     * @param interval        - временной интервал
-     * @param lastPrice       - последняя цена
-     * @param lastRSI         - последнее значение RSI
-     * @param lastCCI         - последнее значение CCI
-     * @param lastSMA         - последнее значение SMA
-     * @param isPriceBelowSMA - находится ли цена ниже SMA
-     * @param isPriceAboveSMA - находится ли цена выше SMA
-     */
-    public static void logAnalysis(String symbol, MarketInterval interval, Num lastPrice, Num lastRSI, Num lastCCI, Num lastSMA, boolean isPriceBelowSMA, boolean isPriceAboveSMA) {
-        logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceBelowSMA, isPriceAboveSMA, false, false, false, false);
+    // Метод для логирования информации о торговых сигналах
+    public static void logSignalInfo(TradeSignal signal, RiskEvaluation evaluation){
+        log.info("Signal for {}: Type: {}, Risk Level: {}, Recommended Lot Size: {}",
+                signal.getSymbol(), signal.getSignalType(), evaluation, signal.getAmount());
     }
 }

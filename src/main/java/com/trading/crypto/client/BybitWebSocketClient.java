@@ -29,7 +29,7 @@ public class BybitWebSocketClient {
 
     /**
      * Push frequency: Derivatives & Options - 100ms, Spot - real-time
-     *
+     * <p>
      * Ticker data
      * 1. symbol: Символ тикера, например "BTCUSD" для Bitcoin в долларах США.
      * 2.  tickDirection: Направление последнего изменения в цене.
@@ -70,9 +70,10 @@ public class BybitWebSocketClient {
      * 37. deliveryFeeRate: Ставка пошлины за поставку.
      * 38. predictedDeliveryPrice: Прогнозируемая цена поставки.
      * 39. change24h: Изменение цены за последние 24 часа.
-     *
+     * <p>
      * Topic:
      * tickers.{symbol}
+     *
      * @param symbol ticker of crypto pair
      */
     public void subscribeTicker(String symbol) {
@@ -81,7 +82,7 @@ public class BybitWebSocketClient {
         client.setMessageHandler(message -> {
             var tickerData = (new ObjectMapper()).readValue(message, WebSocketTickerMessage.class);
             // Process message data here
-            log.info("Ticker {}, data: {}",symbol, tickerData.getData().toString());
+            log.info("Ticker {}, data: {}", symbol, tickerData.getData().toString());
         });
 
         // Ticker
@@ -90,17 +91,18 @@ public class BybitWebSocketClient {
 
     /**
      * Available intervals:
-     *
-     *     1 3 5 15 30 (min)
-     *     60 120 240 360 720 (min)
-     *     D (day)
-     *     W (week)
-     *     M (month)
-     *
+     * <p>
+     * 1 3 5 15 30 (min)
+     * 60 120 240 360 720 (min)
+     * D (day)
+     * W (week)
+     * M (month)
+     * <p>
      * Push frequency: 1-60s
-     *
+     * <p>
      * Topic:
      * kline.{interval}.{symbol} e.g., kline.30.BTCUSDT
+     *
      * @param symbol
      */
     public void subscribeKline(String symbol, String interval) {
@@ -124,16 +126,16 @@ public class BybitWebSocketClient {
      * Level 50 data, push frequency: 20ms
      * Level 200 data, push frequency: 100ms
      * Level 500 data, push frequency: 100ms
-     *
+     * <p>
      * Spot:
      * Level 1 data, push frequency: 10ms
      * Level 50 data, push frequency: 20ms
      * Level 200 data, push frequency: 200ms
-     *
+     * <p>
      * Option:
      * Level 25 data, push frequency: 20ms
      * Level 100 data, push frequency: 100ms
-     *
+     * <p>
      * Topic:
      * orderbook.{depth}.{symbol} e.g., orderbook.1.BTCUSDT
      *
@@ -150,7 +152,7 @@ public class BybitWebSocketClient {
         });
 
         // Orderbook
-        client.getPublicChannelStream(List.of("orderbook."+ level + "." + symbol), BybitApiConfig.V5_PUBLIC_LINEAR);
+        client.getPublicChannelStream(List.of("orderbook." + level + "." + symbol), BybitApiConfig.V5_PUBLIC_LINEAR);
 
         // Subscribe Orderbook more than one args
         //client.getPublicChannelStream(List.of("orderbook.50.BTCUSDT","orderbook.1.ETHUSDT"), BybitApiConfig.V5_PUBLIC_LINEAR);
@@ -158,36 +160,37 @@ public class BybitWebSocketClient {
 
     public void subscribeMarketData(String symbol) {
         log.info("subscribeMarketData, symbol: {}", symbol);
-        var client = BybitApiClientFactory.newInstance(BybitApiConfig.TESTNET_DOMAIN,true).newMarketDataRestClient();
+        var client = BybitApiClientFactory.newInstance(BybitApiConfig.TESTNET_DOMAIN, true).newMarketDataRestClient();
         var marketKLineRequest = MarketDataRequest.builder().category(CategoryType.LINEAR).symbol(symbol).marketInterval(MarketInterval.WEEKLY).build();
 
         // Weekly market Kline
         var marketKlineResult = client.getMarketLinesData(marketKLineRequest);
-        log.info("subscribeMarketData"+ marketKlineResult.toString());
+        log.info("subscribeMarketData" + marketKlineResult.toString());
 
         // Weekly market price Kline for a symbol
         var marketPriceKlineResult = client.getMarketPriceLinesData(marketKLineRequest);
-        log.info("subscribeMarketData"+ marketPriceKlineResult.toString());
+        log.info("subscribeMarketData" + marketPriceKlineResult.toString());
 
         // Weekly index price Kline for a symbol
         var indexPriceKlineResult = client.getIndexPriceLinesData(marketKLineRequest);
-        log.info("subscribeMarketData"+ indexPriceKlineResult.toString());
+        log.info("subscribeMarketData" + indexPriceKlineResult.toString());
 
         // Weekly premium index price Kline for a symbol
         var indexPremiumPriceKlineResult = client.getPremiumIndexPriceLinesData(marketKLineRequest);
-        log.info("subscribeMarketData"+ indexPremiumPriceKlineResult.toString());
+        log.info("subscribeMarketData" + indexPremiumPriceKlineResult.toString());
 
         // Get server time
         var serverTime = client.getServerTime();
-        log.info("subscribeMarketData"+ serverTime.toString());
+        log.info("subscribeMarketData" + serverTime.toString());
     }
 
     /**
      * https://bybit-exchange.github.io/docs/v5/order/create-order
+     *
      * @param symbol
      * @param quantity
      */
-    public void placeSingleOrder(String symbol, String quantity){
+    public void placeSingleOrder(String symbol, String quantity) {
         var client = BybitApiClientFactory.newInstance("YOUR_API_KEY", "YOUR_API_SECRET", BybitApiConfig.TESTNET_DOMAIN, true).newAsyncTradeRestClient();
         var newOrderRequest = TradeOrderRequest.builder()
                 .category(CategoryType.LINEAR).symbol(symbol)
@@ -200,28 +203,28 @@ public class BybitWebSocketClient {
         client.createOrder(newOrderRequest, System.out::println);
     }
 
-    public void getPositionInfo(String symbol){
+    public void getPositionInfo(String symbol) {
         var client = BybitApiClientFactory.newInstance("YOUR_API_KEY", "YOUR_API_SECRET", BybitApiConfig.TESTNET_DOMAIN).newAsyncPositionRestClient();
         var positionListRequest = PositionDataRequest.builder().category(CategoryType.LINEAR).symbol(symbol).build();
         client.getPositionInfo(positionListRequest, System.out::println);
     }
 
-    public void getAssetInfo(){
+    public void getAssetInfo() {
         var client = BybitApiClientFactory.newInstance("YOUR_API_KEY", "YOUR_API_SECRET", BybitApiConfig.TESTNET_DOMAIN).newAsyncAssetRestClient();
         var coinExchangeRecordsRequest = AssetDataRequest.builder().build();
         client.getAssetCoinExchangeRecords(coinExchangeRecordsRequest, System.out::println);
     }
 
-    private void positionSubscribe(){
+    private void positionSubscribe() {
         var client = BybitApiClientFactory.newInstance("YOUR_API_KEY", "YOUR_API_SECRET", BybitApiConfig.STREAM_TESTNET_DOMAIN).newWebsocketClient();
 
         // Position
         client.getPrivateChannelStream(List.of("position"), BybitApiConfig.V5_PRIVATE);
     }
 
-    private void createOrder(){
+    private void createOrder() {
         var client = BybitApiClientFactory.newInstance("YOUR_API_KEY", "YOUR_API_SECRET", BybitApiConfig.TESTNET_DOMAIN, true).newAsyncTradeRestClient();
-        Map<String, Object> order =Map.of(
+        Map<String, Object> order = Map.of(
                 "category", "option",
                 "symbol", "BTC-29DEC23-10000-P",
                 "side", "Buy",

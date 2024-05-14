@@ -7,7 +7,7 @@ import org.ta4j.core.num.Num;
 @Data
 @AllArgsConstructor
 public class Signal {
-    private AnalysisResult signal;
+    private AnalysisResult analysisResult;
     private String asset;
     private Num price;
     private long timestamp;

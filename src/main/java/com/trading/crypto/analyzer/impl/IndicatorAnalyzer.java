@@ -13,9 +13,13 @@ import org.ta4j.core.Bar;
 import org.ta4j.core.BaseTimeSeries;
 import org.ta4j.core.TimeSeries;
 import org.ta4j.core.indicators.CCIIndicator;
+import org.ta4j.core.indicators.CachedIndicator;
 import org.ta4j.core.indicators.RSIIndicator;
 import org.ta4j.core.indicators.SMAIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
+import org.ta4j.core.indicators.helpers.ConvergenceDivergenceIndicator;
+import org.ta4j.core.indicators.helpers.ConvergenceDivergenceIndicator.ConvergenceDivergenceType;
+import org.ta4j.core.indicators.statistics.SimpleLinearRegressionIndicator;
 import org.ta4j.core.num.Num;
 import org.ta4j.core.num.PrecisionNum;
 
@@ -27,8 +31,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- *  Убедись, что интерфейс поддерживает расчет различных типов индикаторов. Возможно, стоит предусмотреть возможность
- *  расширения для добавления новых индикаторов без изменения основного кода.
+ * Убедись, что интерфейс поддерживает расчет различных типов индикаторов. Возможно, стоит предусмотреть возможность
+ * расширения для добавления новых индикаторов без изменения основного кода.
  */
 @Slf4j
 public class IndicatorAnalyzer implements Analyser {
@@ -38,6 +42,8 @@ public class IndicatorAnalyzer implements Analyser {
     public static final int RSI_LOW = 30;
     public static final int RSI_HIGH = 70;
 
+    private static final int CHECK_PERIOD = 20;
+
     private final String symbol;
 
     private final Map<MarketInterval, TimeSeries> seriesMap = new HashMap<>();
@@ -45,12 +51,9 @@ public class IndicatorAnalyzer implements Analyser {
     private final Map<MarketInterval, RSIIndicator> rsiMap = new HashMap<>();
     private final Map<MarketInterval, CCIIndicator> cciMap = new HashMap<>();
 
-    @Getter
-    private final List<Signal> signalHistory;
 
     public IndicatorAnalyzer(Map<String, Map<MarketInterval, List<KlineElement>>> cache, String symbol) {
         this.symbol = symbol;
-        this.signalHistory = new ArrayList<>();
 
         // Инициализация TimeSeries и индикаторов для каждого таймфрейма и символа
         if (cache.containsKey(symbol)) {
@@ -96,23 +99,26 @@ public class IndicatorAnalyzer implements Analyser {
                 series.addBar(newBar);
                 log.trace("Added new bar to the series for interval " + interval + ": " + newBar);
             } else {
-                log.trace("Attempted to add bar with end time " + newBar.getEndTime() +
-                        " that is not after series end time " + series.getLastBar().getEndTime());
+                log.trace("Attempted to add bar with end time " + newBar.getEndTime() + " that is not after series end time " + series.getLastBar().getEndTime());
             }
         } else {
             log.error("No series found for interval " + interval);
         }
     }
 
-    public Map<MarketInterval, AnalysisResult> calculateIndicators(List<MarketInterval> intervals) {
-        return intervals.stream().collect(Collectors.toMap(interval -> interval, this::calculateIndicators));
+    public Map<MarketInterval, Signal> calculateIndicators(List<MarketInterval> intervals) {
+        return intervals.stream()
+                .distinct()
+                .map(interval -> Map.entry(interval, calculateIndicators(interval)))
+                .filter(entry -> entry.getValue() != null)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (existing, replacement) -> replacement));
     }
 
-    public AnalysisResult calculateIndicators(MarketInterval interval) {
+    public Signal calculateIndicators(MarketInterval interval) {
         TimeSeries series = seriesMap.get(interval);
         if (series == null || series.getBarCount() == 0) {
             log.error("No data available for {} at interval {}", symbol, interval);
-            return AnalysisResult.HOLD;
+            return null;
         }
 
         SMAIndicator sma = smaMap.get(interval);
@@ -125,119 +131,44 @@ public class IndicatorAnalyzer implements Analyser {
         Num lastCCI = cci.getValue(lastIndex);
         Num lastSMA = sma.getValue(lastIndex);
 
-        boolean isPriceBelowSMA = lastPrice.isLessThan(lastSMA);
         boolean isPriceAboveSMA = lastPrice.isGreaterThan(lastSMA);
 
-        if (lastCCI.isLessThan(PrecisionNum.valueOf(CCI_LOW)) && lastRSI.isLessThan(PrecisionNum.valueOf(RSI_LOW))) {
-            boolean bullishCciDivergence = checkBullishCciDivergence(interval, cci);
-            if (bullishCciDivergence && isPriceBelowSMA) {
-                signalHistory.add(new Signal(AnalysisResult.STRONG_BUY, symbol, lastPrice, System.currentTimeMillis()));
+        ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
 
-                LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, true, isPriceAboveSMA,
-                        false, false, false, true);
+        // Использование ConvergenceDivergenceIndicator для определения дивергенций
+        ConvergenceDivergenceIndicator cciPositiveDivergent = new ConvergenceDivergenceIndicator(closePrice, cci, CHECK_PERIOD, ConvergenceDivergenceType.positiveDivergent);
+        ConvergenceDivergenceIndicator cciNegativeDivergent = new ConvergenceDivergenceIndicator(closePrice, cci, CHECK_PERIOD, ConvergenceDivergenceType.negativeDivergent);
+        ConvergenceDivergenceIndicator rsiPositiveDivergent = new ConvergenceDivergenceIndicator(closePrice, rsi, CHECK_PERIOD, ConvergenceDivergenceType.positiveDivergent);
+        ConvergenceDivergenceIndicator rsiNegativeDivergent = new ConvergenceDivergenceIndicator(closePrice, rsi, CHECK_PERIOD, ConvergenceDivergenceType.negativeDivergent);
 
-                return AnalysisResult.STRONG_BUY;
+        boolean bullishCciDivergence = cciPositiveDivergent.getValue(lastIndex);
+        boolean bearishCciDivergence = cciNegativeDivergent.getValue(lastIndex);
+        boolean bullishRsiDivergence = rsiPositiveDivergent.getValue(lastIndex);
+        boolean bearishRsiDivergence = rsiNegativeDivergent.getValue(lastIndex);
+
+        // Log analysis before making decisions
+        LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceAboveSMA, bullishRsiDivergence,
+                bearishRsiDivergence, bullishCciDivergence, bearishCciDivergence);
+
+        AnalysisResult signal;
+        if (lastCCI.isLessThan(PrecisionNum.valueOf(CCI_LOW + 30)) && lastRSI.isLessThan(PrecisionNum.valueOf(RSI_LOW))) {
+            if (bullishCciDivergence && bullishRsiDivergence) {
+                signal = AnalysisResult.STRONG_BUY;
+            } else {
+                signal = AnalysisResult.BUY;
             }
-            LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceBelowSMA, isPriceAboveSMA);
-            signalHistory.add(new Signal(AnalysisResult.BUY, symbol, lastPrice, System.currentTimeMillis()));
-            return AnalysisResult.BUY;
-        } else if (lastCCI.isGreaterThan(PrecisionNum.valueOf(CCI_HIGH)) && lastRSI.isGreaterThan(PrecisionNum.valueOf(RSI_HIGH))) {
-            boolean bearishCciDivergence = checkBearishCciDivergence(interval, cci);
-            if (bearishCciDivergence && isPriceAboveSMA) {
-                signalHistory.add(new Signal(AnalysisResult.STRONG_SELL, symbol, lastPrice, System.currentTimeMillis()));
 
-                LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceBelowSMA,
-                        true, false, false, false, true);
-
-                return AnalysisResult.STRONG_SELL;
+        } else if (lastCCI.isGreaterThan(PrecisionNum.valueOf(CCI_HIGH - 30)) && lastRSI.isGreaterThan(PrecisionNum.valueOf(RSI_HIGH))) {
+            if (bearishCciDivergence || bearishRsiDivergence) {
+                signal = AnalysisResult.STRONG_SELL;
+            } else {
+                signal = AnalysisResult.SELL;
             }
-            signalHistory.add(new Signal(AnalysisResult.SELL, symbol, lastPrice, System.currentTimeMillis()));
-            LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceBelowSMA, isPriceAboveSMA);
-            return AnalysisResult.SELL;
         } else {
-            // Log analysis before making decisions
-            LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceBelowSMA, isPriceAboveSMA);
-            return AnalysisResult.HOLD;
+            signal = AnalysisResult.HOLD;
         }
+
+        return new Signal(signal, symbol, lastPrice, System.currentTimeMillis());
     }
 
-    private boolean checkBullishCciDivergence(MarketInterval interval, CCIIndicator cci) {
-        TimeSeries series = seriesMap.get(interval);
-        int endIndex = series.getEndIndex();
-        int divergenceCount = 0;
-
-        Num minCCI = cci.getValue(endIndex);
-        Num minPrice = series.getBar(endIndex).getClosePrice();
-
-        for (int i = endIndex - 1; i >= Math.max(endIndex - 20, 0) && divergenceCount < 3; i--) {
-            Num price = series.getBar(i).getClosePrice();
-            Num cciValue = cci.getValue(i);
-            if (price.isLessThan(minPrice) && cciValue.isGreaterThan(minCCI)) {
-                divergenceCount++;
-                minCCI = cciValue;
-                minPrice = price;
-            }
-        }
-        return divergenceCount >= 3;
-    }
-
-    private boolean checkBearishCciDivergence(MarketInterval interval, CCIIndicator cci) {
-        TimeSeries series = seriesMap.get(interval);
-        int endIndex = series.getEndIndex();
-        int divergenceCount = 0;
-
-        Num maxCCI = cci.getValue(endIndex);
-        Num maxPrice = series.getBar(endIndex).getClosePrice();
-
-        for (int i = endIndex - 1; i >= Math.max(endIndex - 20, 0) && divergenceCount < 3; i--) {
-            Num price = series.getBar(i).getClosePrice();
-            Num cciValue = cci.getValue(i);
-            if (price.isGreaterThan(maxPrice) && cciValue.isLessThan(maxCCI)) {
-                divergenceCount++;
-                maxCCI = cciValue;
-                maxPrice = price;
-            }
-        }
-        return divergenceCount >= 3;
-    }
-
-    private boolean checkBullishRsiDivergence(MarketInterval interval, RSIIndicator rsi) {
-        TimeSeries series = seriesMap.get(interval);
-        int endIndex = series.getEndIndex();
-        int divergenceCount = 0;
-
-        Num minRSI = rsi.getValue(endIndex);
-        Num minPrice = series.getBar(endIndex).getClosePrice();
-
-        for (int i = endIndex - 1; i >= Math.max(endIndex - 20, 0) && divergenceCount < 3; i--) {
-            Num price = series.getBar(i).getClosePrice();
-            Num rsiValue = rsi.getValue(i);
-            if (price.isLessThan(minPrice) && rsiValue.isGreaterThan(minRSI)) {
-                divergenceCount++;
-                minRSI = rsiValue;
-                minPrice = price;
-            }
-        }
-        return divergenceCount >= 3;
-    }
-
-    private boolean checkBearishRsiDivergence(MarketInterval interval, RSIIndicator rsi) {
-        TimeSeries series = seriesMap.get(interval);
-        int endIndex = series.getEndIndex();
-        int divergenceCount = 0;
-
-        Num maxRSI = rsi.getValue(endIndex);
-        Num maxPrice = series.getBar(endIndex).getClosePrice();
-
-        for (int i = endIndex - 1; i >= Math.max(endIndex - 20, 0) && divergenceCount < 3; i--) {
-            Num price = series.getBar(i).getClosePrice();
-            Num rsiValue = rsi.getValue(i);
-            if (price.isGreaterThan(maxPrice) && rsiValue.isLessThan(maxRSI)) {
-                divergenceCount++;
-                maxRSI = rsiValue;
-                maxPrice = price;
-            }
-        }
-        return divergenceCount >= 3;
-    }
 }

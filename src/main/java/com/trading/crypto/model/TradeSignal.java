@@ -3,6 +3,7 @@ package com.trading.crypto.model;
 import lombok.*;
 
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
 public class TradeSignal {
     private AnalysisResult signalType; // Тип сигнала: BUY, SELL, STRONG_BUY, STRONG_SELL
@@ -10,6 +11,6 @@ public class TradeSignal {
     private double entryPrice;        // Цена входа
     private double stopLoss;          // Уровень Stop-Loss
     private double takeProfit;        // Уровень Take-Profit
-    private double amount;
-    private long timestamp;
+    private double amount;            // Количество лотов для входа в сделку
+    private long timestamp;           // Время создания сингала
 }
