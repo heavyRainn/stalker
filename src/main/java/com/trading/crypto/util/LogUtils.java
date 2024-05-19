@@ -4,10 +4,7 @@ import com.bybit.api.client.domain.market.MarketInterval;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.trading.crypto.model.AnalysisResult;
-import com.trading.crypto.model.RiskEvaluation;
-import com.trading.crypto.model.Signal;
-import com.trading.crypto.model.TradeSignal;
+import com.trading.crypto.model.*;
 import com.trading.crypto.trader.impl.WaveTrader;
 import lombok.extern.slf4j.Slf4j;
 import org.ta4j.core.num.Num;
@@ -222,5 +219,34 @@ public class LogUtils {
     public static void logSignalInfo(TradeSignal signal, RiskEvaluation evaluation){
         log.info("Signal for {}: Type: {}, Risk Level: {}, Recommended Lot Size: {}",
                 signal.getSymbol(), signal.getSignalType(), evaluation, signal.getAmount());
+    }
+
+    public static void logPinBarAnalysis(Map<MarketInterval, PinBarAnalysisResult> pinBarAnalysisResult) {
+        log.info("Pin Bar Analysis Results:");
+        for (Map.Entry<MarketInterval, PinBarAnalysisResult> entry : pinBarAnalysisResult.entrySet()) {
+            MarketInterval interval = entry.getKey();
+            PinBarAnalysisResult result = entry.getValue();
+            String intervalColor = getIntervalColor(interval);
+            String resultColor = getResultColor(result);
+            log.info("{}Interval: {}{}, Result: {}{}{}", intervalColor, interval, RESET, resultColor, result, RESET);
+        }
+    }
+
+    private static String getIntervalColor(MarketInterval interval) {
+        return switch (interval) {
+            case ONE_MINUTE -> BLUE;
+            case FIVE_MINUTES -> CYAN;
+            case HOURLY -> PURPLE;
+            default -> RESET;
+        };
+    }
+
+    private static String getResultColor(PinBarAnalysisResult result) {
+        return switch (result) {
+            case BULLISH_PIN_BAR -> GREEN;
+            case BEARISH_PIN_BAR -> RED;
+            case NO_PIN_BAR -> YELLOW;
+            default -> RESET;
+        };
     }
 }

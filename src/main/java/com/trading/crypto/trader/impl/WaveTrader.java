@@ -2,13 +2,11 @@ package com.trading.crypto.trader.impl;
 
 import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.analyzer.impl.IndicatorAnalyzer;
+import com.trading.crypto.analyzer.impl.PinBarDetector;
 import com.trading.crypto.data.impl.HistoricalDataCollector;
 import com.trading.crypto.manager.RiskManager;
 import com.trading.crypto.manager.StrategyManager;
-import com.trading.crypto.model.RiskEvaluation;
-import com.trading.crypto.model.Signal;
-import com.trading.crypto.model.Trade;
-import com.trading.crypto.model.TradeSignal;
+import com.trading.crypto.model.*;
 import com.trading.crypto.order.OrderExecutor;
 import com.trading.crypto.trader.Trader;
 import com.trading.crypto.util.LogUtils;
@@ -53,7 +51,7 @@ public class WaveTrader implements Trader {
                 @Override
                 public void run() {
                     log.info("Initialization executed after 1 minute delay");
-                    if (historicalDataCollector.getKlineCache().size() != 0) {
+                    if (!historicalDataCollector.getKlineCache().isEmpty()) {
                         indicatorAnalyzer = new IndicatorAnalyzer(historicalDataCollector.getKlineCache(), symbol);
                         historicalDataCollector.setAnalyser(indicatorAnalyzer);
                         log.info("IndicatorAnalyzer Initialized!");
@@ -76,17 +74,21 @@ public class WaveTrader implements Trader {
         }
 
         // Анализ данных индикаторов
-        Map<MarketInterval, Signal> indicatorsAnalysisResult = indicatorAnalyzer.calculateIndicators(intervals);
+        Map<MarketInterval, Signal> indicatorsAnalysisResult = indicatorAnalyzer.analyze(intervals);
         LogUtils.logAnalysis(indicatorsAnalysisResult);
+
+        Map<MarketInterval, PinBarAnalysisResult> pinBarAnalysisResult = PinBarDetector.analyze(intervals, historicalDataCollector.getKlineCache());
+        LogUtils.logPinBarAnalysis(pinBarAnalysisResult);
 
         // Анализ рынка стратегией возможно ИИ
         List<TradeSignal> signals = strategyManagers.stream()
                 .map(manager -> manager.analyzeData(indicatorsAnalysisResult))
                 .filter(Objects::nonNull)
                 .flatMap(List::stream)
+                .filter(tradeSignal -> !AnalysisResult.HOLD.equals(tradeSignal.getSignalType()))
                 .collect(Collectors.toList());
 
-        if (signals.size() == 0) {
+        if (signals.isEmpty()) {
             log.info("Haunting....");
             return;
         }

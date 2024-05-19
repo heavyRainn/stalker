@@ -106,7 +106,8 @@ public class IndicatorAnalyzer implements Analyser {
         }
     }
 
-    public Map<MarketInterval, Signal> calculateIndicators(List<MarketInterval> intervals) {
+    @Override
+    public Map<MarketInterval, Signal> analyze(List<MarketInterval> intervals) {
         return intervals.stream()
                 .distinct()
                 .map(interval -> Map.entry(interval, calculateIndicators(interval)))
