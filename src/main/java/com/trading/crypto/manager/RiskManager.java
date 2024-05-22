@@ -1,7 +1,9 @@
 package com.trading.crypto.manager;
 
-import com.bybit.api.client.domain.market.MarketInterval;
-import com.trading.crypto.model.*;
+import com.trading.crypto.model.RiskEvaluation;
+import com.trading.crypto.model.Signal;
+import com.trading.crypto.model.Trade;
+import com.trading.crypto.model.TradeSignal;
 
 import java.util.List;
 import java.util.Map;
@@ -11,7 +13,7 @@ import java.util.Map;
  * Execution (Исполнение)
  */
 public interface RiskManager {
-    Map<TradeSignal, RiskEvaluation> evaluateRisk(List<TradeSignal> signals, Map<MarketInterval, Signal> indicatorsAnalysisResult);
+    Map<TradeSignal, RiskEvaluation> evaluateRisk(List<TradeSignal> signals, List<Signal> indicatorsAnalysisResult);
 
     Trade evaluateAndPrepareTrade(TradeSignal signal, RiskEvaluation evaluation);
 }

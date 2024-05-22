@@ -24,7 +24,7 @@ import java.util.*;
 @Service
 public class HistoricalDataCollector implements DataCollector {
 
-    public String symbol;
+    public List<String> symbols;
     private List<MarketInterval> intervals;
 
     @Setter
@@ -47,11 +47,11 @@ public class HistoricalDataCollector implements DataCollector {
     @Getter
     private final Map<String, Map<MarketInterval, List<KlineElement>>> klineCache = new HashMap<>();
 
-    public void init(String symbol, List<MarketInterval> intervals) {
-        this.symbol = symbol;
+    public void init(List<String> symbols, List<MarketInterval> intervals) {
+        this.symbols = symbols;
         this.intervals = intervals;
 
-        intervals.forEach(interval -> pullKline(symbol, interval));
+        intervals.forEach(interval -> symbols.forEach(symbol -> pullKline(symbol, interval)));
     }
 
     @Scheduled(fixedDelay = 60000)
@@ -61,14 +61,14 @@ public class HistoricalDataCollector implements DataCollector {
         }
 
         // подтягивание значений по каждому символу и интервалу
-        intervals.forEach(interval -> {
+        intervals.forEach(interval -> symbols.forEach(symbol -> {
             List<KlineElement> elements = klineCache.get(symbol).get(interval);
             if (elements != null && !elements.isEmpty()) {
                 pullKline(symbol, interval, elements.get(0).getTimestamp());
             } else {
                 log.error("No data available for symbol {} and interval {}", symbol, interval);
             }
-        });
+        }));
     }
 
     @Scheduled(fixedRate = 3600000) // 3600000 миллисекунд = 1 час
@@ -123,27 +123,29 @@ public class HistoricalDataCollector implements DataCollector {
             // Преобразуем JSON в LinkedHashMap
             Map<String, Object> map = StalkerUtils.getMapFromResponse(data);
 
-            LinkedHashMap<Object, Object> result = (LinkedHashMap) map.get("result");
+            LinkedHashMap<Object, Object> result = (LinkedHashMap<Object, Object>) map.get("result");
             List<List<Object>> list = (List<List<Object>>) result.get("list");
 
-            // Убедиться, что существует соответствующий список для symbol и interval
-            klineCache.putIfAbsent(symbol, new HashMap<>());
-            klineCache.get(symbol).putIfAbsent(interval, new LinkedList<>());
+            synchronized (klineCache) {
+                // Убедиться, что существует соответствующий список для symbol и interval
+                klineCache.computeIfAbsent(symbol, k -> new HashMap<>())
+                        .computeIfAbsent(interval, k -> new LinkedList<>());
 
-            List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
+                List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
 
-            Optional.ofNullable(list).ifPresent(klineSingleData -> {
-                for (int i = klineSingleData.size() - 1; i >= 0; i--) {
-                    KlineElement klineElement = toKlineElement(klineSingleData.get(i));
-                    // Предотвратить добавление дубликатов
-                    if (!symbolKlineCache.contains(klineElement)) {
-                        symbolKlineCache.add(0, klineElement);
-                        if (analyser != null) {
-                            analyser.update(interval, klineElement);
+                Optional.ofNullable(list).ifPresent(klineSingleData -> {
+                    for (int i = klineSingleData.size() - 1; i >= 0; i--) {
+                        KlineElement klineElement = toKlineElement(klineSingleData.get(i));
+                        // Предотвратить добавление дубликатов
+                        if (!symbolKlineCache.contains(klineElement)) {
+                            symbolKlineCache.add(0, klineElement);
+                            if (analyser != null) {
+                                analyser.update(symbol, interval, klineElement);
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         });
     }
 

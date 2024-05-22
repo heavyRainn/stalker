@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Component
 public class WaveTrader implements Trader {
 
-    public static final String symbol = "BTCUSDT";
+    public static final List<String> symbols = List.of("BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT");
     private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES, MarketInterval.HOURLY);
 
     private final HistoricalDataCollector historicalDataCollector;
@@ -44,7 +44,7 @@ public class WaveTrader implements Trader {
     private void init() {
         if (indicatorAnalyzer == null) {
             log.info("Loading....");
-            historicalDataCollector.init(symbol, intervals);
+            historicalDataCollector.init(symbols, intervals);
 
             Timer timer = new Timer();
             TimerTask task = new TimerTask() {
@@ -52,7 +52,7 @@ public class WaveTrader implements Trader {
                 public void run() {
                     log.info("Initialization executed after 1 minute delay");
                     if (!historicalDataCollector.getKlineCache().isEmpty()) {
-                        indicatorAnalyzer = new IndicatorAnalyzer(historicalDataCollector.getKlineCache(), symbol);
+                        indicatorAnalyzer = new IndicatorAnalyzer(historicalDataCollector.getKlineCache(), symbols);
                         historicalDataCollector.setAnalyser(indicatorAnalyzer);
                         log.info("IndicatorAnalyzer Initialized!");
                     }
@@ -69,50 +69,61 @@ public class WaveTrader implements Trader {
     @Scheduled(fixedRate = 60000)
     public void haunt() {
         if (indicatorAnalyzer == null) {
-            log.info(symbol + " Trader Loading....");
+            log.info("Trader Loading....");
             return;
         }
 
-        // Анализ данных индикаторов
-        Map<MarketInterval, Signal> indicatorsAnalysisResult = indicatorAnalyzer.analyze(intervals);
-        LogUtils.logAnalysis(indicatorsAnalysisResult);
+        for (String symbol : symbols) {
+            // Анализ данных индикаторов для конкретного символа
+            List<Signal> indicatorsAnalysisResult = indicatorAnalyzer.analyze(symbol, intervals);
+            LogUtils.logAnalysis(indicatorsAnalysisResult);
 
-        Map<MarketInterval, PinBarAnalysisResult> pinBarAnalysisResult = PinBarDetector.analyze(intervals, historicalDataCollector.getKlineCache());
-        LogUtils.logPinBarAnalysis(pinBarAnalysisResult);
+            // Анализ пин-баров для конкретного символа
+            List<PinBarSignal> pinBarAnalysisResult = PinBarDetector.analyze(symbols, intervals, historicalDataCollector.getKlineCache());
+            LogUtils.logPinBarSignals(pinBarAnalysisResult);
 
-        // Анализ рынка стратегией возможно ИИ
-        List<TradeSignal> signals = strategyManagers.stream()
-                .map(manager -> manager.analyzeData(indicatorsAnalysisResult))
-                .filter(Objects::nonNull)
-                .flatMap(List::stream)
-                .filter(tradeSignal -> !AnalysisResult.HOLD.equals(tradeSignal.getSignalType()))
-                .collect(Collectors.toList());
+            // Анализ рынка стратегией возможно ИИ для конкретного символа
+            List<TradeSignal> signals = strategyManagers.stream()
+                    .map(manager -> manager.analyzeData(indicatorsAnalysisResult, pinBarAnalysisResult))
+                    .filter(Objects::nonNull)
+                    .flatMap(List::stream)
+                    .filter(tradeSignal -> !AnalysisResult.HOLD.equals(tradeSignal.getSignalType()))
+                    .collect(Collectors.toList());
 
-        if (signals.isEmpty()) {
-            log.info("Haunting....");
-            return;
-        }
-
-        log.info("------------------------------- Signals -----------------------------------------------/");
-        LogUtils.logTradeSignals(signals);
-        LogUtils.logTradeSignalsToFile(signals);
-
-        // Оценка рисков для выставления сделки
-        Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult);
-        log.info("Risk Evaluation results: {}", riskEvaluations);
-
-        riskEvaluations.forEach((signal, evaluation) -> {
-            if (RiskEvaluation.ACCEPTABLE.equals(evaluation)) {
-                // Логируем информацию о сигнале
-                LogUtils.logSignalInfo(signal, evaluation);
-
-                Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation);
-                log.warn("Risk for {} is Acceptable, can trade!!!", trade);
-            } else {
-                log.info("Risk for {} is not Acceptable, no trade", signal.getSymbol());
+            if (signals.isEmpty()) {
+                log.info("Haunting....");
+                continue;
             }
-        });
-        log.info("---------------------------------------------------------------------------------------/");
+
+            log.info("------------------------------- Signals for symbol: " + symbol + " -----------------------------------------------/");
+            LogUtils.logTradeSignals(signals);
+            LogUtils.logTradeSignalsToFile(signals);
+
+            // Оценка рисков для выставления сделки для конкретного символа
+            Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult);
+            log.info("Risk Evaluation results for {}: {}", symbol, riskEvaluations);
+
+            riskEvaluations.forEach((signal, evaluation) -> {
+                if (RiskEvaluation.ACCEPTABLE.equals(evaluation)) {
+                    // Логируем информацию о сигнале
+                    LogUtils.logSignalInfo(signal, evaluation);
+
+                    Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation);
+                    if (trade != null) {
+                        log.warn("Risk for {} is Acceptable, executing trade: {}", null, trade);
+                        try {
+                            //orderExecutor.executeOrder(trade);
+                            log.info("Trade executed: {}", trade);
+                        } catch (Exception e) {
+                            log.error("Failed to execute trade: {}", trade, e);
+                        }
+                    }
+                } else {
+                    log.info("Risk for {} is not Acceptable, no trade", signal.getSymbol());
+                }
+            });
+            log.info("---------------------------------------------------------------------------------------/");
+        }
     }
 
 

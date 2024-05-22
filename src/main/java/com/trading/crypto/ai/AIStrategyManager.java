@@ -2,12 +2,10 @@ package com.trading.crypto.ai;
 
 import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.data.impl.HistoricalDataCollector;
-import com.trading.crypto.manager.StrategyManager;
 import com.trading.crypto.model.AnalysisResult;
 import com.trading.crypto.model.KlineElement;
 import com.trading.crypto.model.Signal;
 import com.trading.crypto.model.TradeSignal;
-import com.trading.crypto.trader.impl.WaveTrader;
 import com.trading.crypto.util.DataPreparationUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
@@ -30,7 +28,7 @@ import java.util.Map;
 
 @Slf4j
 //@Component
-public class AIStrategyManager implements StrategyManager {
+public class AIStrategyManager  {
     private static final String MODEL_FILE = "StalkerLSTMModel.zip";
     private static final int SEQ_LENGTH = 200; // Количество баров для прогнозирования
     private CryptoPredictionModel predictionModel; // Модель ИИ для прогнозирования
@@ -68,14 +66,14 @@ public class AIStrategyManager implements StrategyManager {
      * @param indicatorsAnalysisResult - карта результатов анализа индикаторов
      * @return торговый сигнал
      */
-    @Override
-    public List<TradeSignal> analyzeData(Map<MarketInterval, Signal> indicatorsAnalysisResult) {
+    //@Override
+    public List<TradeSignal> analyzeData(List<Signal> indicatorsAnalysisResult) {
         // Получаем прогноз цены от модели ИИ
-        double prediction = getAIPrediction(WaveTrader.symbol, MarketInterval.ONE_MINUTE);
+        double prediction = getAIPrediction("BTCUSDT", MarketInterval.ONE_MINUTE);
 
         // Генерация торгового сигнала на основе прогнозов ИИ и результатов индикаторов
-        TradeSignal signal = generateTradeSignal(indicatorsAnalysisResult, prediction, "BTCUSDT");
-        log.info("Generated Trade Signal: {}", signal);
+        //TradeSignal signal = generateTradeSignal(indicatorsAnalysisResult, prediction, "BTCUSDT");
+        //log.info("Generated Trade Signal: {}", signal);
         //return signal;
 
         return null;

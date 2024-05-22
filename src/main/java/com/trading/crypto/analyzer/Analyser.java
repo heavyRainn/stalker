@@ -5,9 +5,8 @@ import com.trading.crypto.model.KlineElement;
 import com.trading.crypto.model.Signal;
 
 import java.util.List;
-import java.util.Map;
 
 public interface Analyser  {
-    void update(MarketInterval interval, KlineElement klineElement);
-    Map<MarketInterval, Signal> analyze(List<MarketInterval> intervals);
+    void update(String symbol, MarketInterval interval, KlineElement klineElement);
+    List<Signal> analyze(String symbol, List<MarketInterval> intervals);
 }

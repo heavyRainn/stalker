@@ -5,17 +5,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.trading.crypto.model.*;
-import com.trading.crypto.trader.impl.WaveTrader;
 import lombok.extern.slf4j.Slf4j;
 import org.ta4j.core.num.Num;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 public class LogUtils {
@@ -57,17 +53,17 @@ public class LogUtils {
     /**
      * Логирование результатов анализа для каждого временного интервала
      *
-     * @param analysisResults - карта результатов анализа для каждого временного интервала
+     * @param analysisResults - список результатов анализа
      */
-    public static void logAnalysis(Map<MarketInterval, Signal> analysisResults) {
+    public static void logAnalysis(List<Signal> analysisResults) {
         if (analysisResults.isEmpty()) {
             log.info("No analysis results to display.");
             return;
         }
 
-        StringBuilder logMessage = new StringBuilder("\nAnalysis Results for \033[35m").append("\033[0m:");
-        analysisResults.forEach((interval, signal) -> {
-            logMessage.append("\n\tInterval: \033[35m").append(interval).append("\033[0m")
+        StringBuilder logMessage = new StringBuilder("\nAnalysis Results:");
+        analysisResults.forEach(signal -> {
+            logMessage.append("\n\tInterval: \033[35m").append(signal.getInterval()).append("\033[0m")
                     .append(" - Result: ").append(formatResult(signal.getAnalysisResult()))
                     .append(", Pair: ").append(signal.getAsset())
                     .append(", Price: ").append(signal.getPrice())
@@ -77,39 +73,47 @@ public class LogUtils {
         log.info(logMessage.toString());
     }
 
+    /**
+     * Форматирование метки времени для логирования
+     *
+     * @param timestamp - метка времени
+     * @return отформатированная строка метки времени
+     */
     private static String formatTimestamp(long timestamp) {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return sdf.format(new Date(timestamp));
+        return new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date(timestamp));
     }
 
     /**
      * Сохранение торговых сигналов в JSON файл
      *
-     * @param signals список торговых сигналов
+     * @param signals карта символов и соответствующих списков торговых сигналов
      */
     public static void logTradeSignalsToFile(List<TradeSignal> signals) {
-        List<TradeSignal> existingSignals = new ArrayList<>();
+        signals.forEach(signal -> {
+            List<TradeSignal> existingSignals = new ArrayList<>();
 
-        // Сначала считываем существующие данные
-        File file = new File(WaveTrader.symbol + "_signals.json");
-        if (file.exists()) {
-            try {
-                existingSignals = mapper.readValue(file, new TypeReference<List<TradeSignal>>() {});
-            } catch (IOException e) {
-                System.err.println("Ошибка при чтении файла: " + e.getMessage());
+            // Сначала считываем существующие данные
+            File file = new File(signal.getSymbol() + "_signals.json");
+            if (file.exists()) {
+                try {
+                    existingSignals = mapper.readValue(file, new TypeReference<List<TradeSignal>>() {
+                    });
+                } catch (IOException e) {
+                    System.err.println("Ошибка при чтении файла: " + e.getMessage());
+                }
             }
-        }
 
-        // Создаем новый список, объединяющий новые и существующие сигналы
-        List<TradeSignal> allSignals = new ArrayList<>(signals);
-        allSignals.addAll(existingSignals);
+            // Создаем новый список, объединяющий новые и существующие сигналы
+            List<TradeSignal> allSignals = new ArrayList<>(signals);
+            allSignals.addAll(existingSignals);
 
-        // Перезаписываем файл с обновленным списком
-        try {
-            mapper.writeValue(file, allSignals);
-        } catch (IOException e) {
-            System.err.println("Ошибка при записи в файл: " + e.getMessage());
-        }
+            // Перезаписываем файл с обновленным списком
+            try {
+                mapper.writeValue(file, allSignals);
+            } catch (IOException e) {
+                System.err.println("Ошибка при записи в файл: " + e.getMessage());
+            }
+        });
     }
 
     /**
@@ -216,20 +220,32 @@ public class LogUtils {
     }
 
     // Метод для логирования информации о торговых сигналах
-    public static void logSignalInfo(TradeSignal signal, RiskEvaluation evaluation){
+    public static void logSignalInfo(TradeSignal signal, RiskEvaluation evaluation) {
         log.info("Signal for {}: Type: {}, Risk Level: {}, Recommended Lot Size: {}",
                 signal.getSymbol(), signal.getSignalType(), evaluation, signal.getAmount());
     }
 
-    public static void logPinBarAnalysis(Map<MarketInterval, PinBarAnalysisResult> pinBarAnalysisResult) {
-        log.info("Pin Bar Analysis Results:");
-        for (Map.Entry<MarketInterval, PinBarAnalysisResult> entry : pinBarAnalysisResult.entrySet()) {
-            MarketInterval interval = entry.getKey();
-            PinBarAnalysisResult result = entry.getValue();
-            String intervalColor = getIntervalColor(interval);
-            String resultColor = getResultColor(result);
-            log.info("{}Interval: {}{}, Result: {}{}{}", intervalColor, interval, RESET, resultColor, result, RESET);
+    /**
+     * Логирование результатов анализа пин-баров
+     *
+     * @param pinBarSignals - список сигналов пин-баров
+     */
+    public static void logPinBarSignals(List<PinBarSignal> pinBarSignals) {
+        if (pinBarSignals.isEmpty()) {
+            log.info("No pin bar signals to display.");
+            return;
         }
+
+        StringBuilder logMessage = new StringBuilder("Pin Bar Analysis Results:");
+        pinBarSignals.forEach(signal -> {
+            String intervalColor = getIntervalColor(signal.getInterval());
+            String resultColor = getResultColor(signal.getResult());
+            logMessage.append("\n\tSymbol: ").append(signal.getSymbol())
+                    .append(", Interval: ").append(intervalColor).append(signal.getInterval()).append(RESET)
+                    .append(", Result: ").append(resultColor).append(signal.getResult()).append(RESET);
+        });
+
+        log.info(logMessage.toString());
     }
 
     private static String getIntervalColor(MarketInterval interval) {

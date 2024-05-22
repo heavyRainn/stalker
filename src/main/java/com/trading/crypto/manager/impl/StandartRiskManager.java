@@ -1,6 +1,5 @@
 package com.trading.crypto.manager.impl;
 
-import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.manager.RiskManager;
 import com.trading.crypto.model.*;
 import org.springframework.stereotype.Component;
@@ -14,7 +13,7 @@ public class StandartRiskManager implements RiskManager {
     private static final double RISK_PER_TRADE = 0.01; // Рисковать 1% баланса на сделку
 
     @Override
-    public Map<TradeSignal, RiskEvaluation> evaluateRisk(List<TradeSignal> signals, Map<MarketInterval, Signal> indicatorsAnalysisResult) {
+    public Map<TradeSignal, RiskEvaluation> evaluateRisk(List<TradeSignal> signals, List<Signal> indicatorsAnalysisResult) {
         Map<TradeSignal, RiskEvaluation> riskEvaluations = new HashMap<>();
 
         for (TradeSignal signal : signals) {
@@ -43,7 +42,7 @@ public class StandartRiskManager implements RiskManager {
                 }
                 case HOLD ->
                     // Минимальный риск, но торговля не рекомендуется
-                    evaluation = RiskEvaluation.LOW;
+                        evaluation = RiskEvaluation.LOW;
             }
             riskEvaluations.put(signal, evaluation);
         }
@@ -60,7 +59,8 @@ public class StandartRiskManager implements RiskManager {
         double stopLoss = signal.getEntryPrice() - signal.getEntryPrice() * 0.005;
         double takeProfit = signal.getEntryPrice() + signal.getEntryPrice() * 0.015;
 
-        return new Trade(signal.getEntryPrice(), stopLoss, takeProfit, amount);
+
+        return new Trade(signal.getSymbol(), signal.getEntryPrice(), stopLoss, takeProfit, amount);
     }
 
     private double calculateLotSize(TradeSignal signal, RiskEvaluation riskLevel) {
