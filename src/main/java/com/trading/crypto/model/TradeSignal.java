@@ -13,4 +13,5 @@ public class TradeSignal {
     private double takeProfit;        // Уровень Take-Profit
     private double amount;            // Количество лотов для входа в сделку
     private long timestamp;           // Время создания сингала
+    //private String details;
 }

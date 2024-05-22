@@ -20,25 +20,14 @@ public class StandartRiskManager implements RiskManager {
             RiskEvaluation evaluation = RiskEvaluation.ACCEPTABLE;
             // Пример оценки риска на основе условных параметров
             switch (signal.getSignalType()) {
-                case STRONG_BUY -> {
+                case STRONG_BUY, BUY -> {
                     // Низкий риск для сильных покупок, средний - для обычных
-                    evaluation = RiskEvaluation.LOW;
-                    signal.setAmount(calculateLotSize(signal, RiskEvaluation.LOW));
+                    signal.setAmount(calculateLotSize(signal, RiskEvaluation.ACCEPTABLE));
                 }
-                case BUY -> {
-                    // Низкий риск для сильных покупок, средний - для обычных
-                    evaluation = RiskEvaluation.MEDIUM;
-                    signal.setAmount(calculateLotSize(signal, RiskEvaluation.MEDIUM));
-                }
-                case STRONG_SELL -> {
+                case STRONG_SELL, SELL -> {
                     // Средний риск для продаж, высокий - для сильных продаж
                     evaluation = signal.getSignalType() == AnalysisResult.STRONG_SELL ? RiskEvaluation.HIGH : RiskEvaluation.MEDIUM;
-                    signal.setAmount(calculateLotSize(signal, RiskEvaluation.TOO_HIGH));
-                }
-                case SELL -> {
-                    // Средний риск для продаж, высокий - для сильных продаж
-                    evaluation = signal.getSignalType() == AnalysisResult.STRONG_SELL ? RiskEvaluation.HIGH : RiskEvaluation.MEDIUM;
-                    signal.setAmount(calculateLotSize(signal, RiskEvaluation.HIGH));
+                    signal.setAmount(calculateLotSize(signal, RiskEvaluation.ACCEPTABLE));
                 }
                 case HOLD ->
                     // Минимальный риск, но торговля не рекомендуется

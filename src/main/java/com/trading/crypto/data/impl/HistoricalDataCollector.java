@@ -123,29 +123,28 @@ public class HistoricalDataCollector implements DataCollector {
             // Преобразуем JSON в LinkedHashMap
             Map<String, Object> map = StalkerUtils.getMapFromResponse(data);
 
-            LinkedHashMap<Object, Object> result = (LinkedHashMap<Object, Object>) map.get("result");
+            LinkedHashMap<Object, Object> result = (LinkedHashMap) map.get("result");
             List<List<Object>> list = (List<List<Object>>) result.get("list");
 
-            synchronized (klineCache) {
-                // Убедиться, что существует соответствующий список для symbol и interval
-                klineCache.computeIfAbsent(symbol, k -> new HashMap<>())
-                        .computeIfAbsent(interval, k -> new LinkedList<>());
+            // Убедиться, что существует соответствующий список для symbol и interval
+            klineCache.putIfAbsent(symbol, new HashMap<>());
+            klineCache.get(symbol).putIfAbsent(interval, new LinkedList<>());
 
-                List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
+            List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
 
-                Optional.ofNullable(list).ifPresent(klineSingleData -> {
-                    for (int i = klineSingleData.size() - 1; i >= 0; i--) {
-                        KlineElement klineElement = toKlineElement(klineSingleData.get(i));
-                        // Предотвратить добавление дубликатов
-                        if (!symbolKlineCache.contains(klineElement)) {
-                            symbolKlineCache.add(0, klineElement);
-                            if (analyser != null) {
-                                analyser.update(symbol, interval, klineElement);
-                            }
+            Optional.ofNullable(list).ifPresent(klineSingleData -> {
+                for (int i = klineSingleData.size() - 1; i >= 0; i--) {
+                    KlineElement klineElement = toKlineElement(klineSingleData.get(i));
+
+                    // TODO Предотвратить добавление дубликатов
+                    if (!symbolKlineCache.contains(klineElement)) {
+                        symbolKlineCache.add(0, klineElement);
+                        if (analyser != null) {
+                            analyser.update(symbol, interval, klineElement);
                         }
                     }
-                });
-            }
+                }
+            });
         });
     }
 

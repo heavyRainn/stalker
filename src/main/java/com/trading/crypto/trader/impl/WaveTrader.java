@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Component
 public class WaveTrader implements Trader {
 
-    public static final List<String> symbols = List.of("BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT");
+    public static final List<String> symbols = List.of("BTCUSDT", "SOLUSDT");
     private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES, MarketInterval.HOURLY);
 
     private final HistoricalDataCollector historicalDataCollector;

@@ -8,6 +8,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class PinBarSignal {
     private String symbol;
+    private double entryPrice;
     private MarketInterval interval;
     private PinBarAnalysisResult result;
 }

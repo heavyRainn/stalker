@@ -5,9 +5,6 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
-/**
- * https://bybit-exchange.github.io/docs/v5/market/mark-kline#http-request
- */
 @Data
 @AllArgsConstructor
 public class KlineElement {
@@ -20,13 +17,14 @@ public class KlineElement {
     private BigDecimal turnover;
 
     public boolean isBullishPinBar() {
-        BigDecimal body = openPrice.subtract(closePrice).abs();
-        BigDecimal upperShadow = highPrice.subtract(openPrice.max(closePrice));
+        BigDecimal body = closePrice.subtract(openPrice).abs();
+        BigDecimal upperShadow = highPrice.subtract(closePrice.max(openPrice));
         BigDecimal lowerShadow = openPrice.min(closePrice).subtract(lowPrice);
 
         // Условие для определения бычьего пин-бара
         return lowerShadow.compareTo(body.multiply(BigDecimal.valueOf(2))) > 0 &&
-                upperShadow.compareTo(body.multiply(BigDecimal.valueOf(0.5))) < 0;
+                upperShadow.compareTo(body.multiply(BigDecimal.valueOf(0.5))) < 0 &&
+                closePrice.compareTo(openPrice) > 0; // Закрытие выше открытия
     }
 
     public boolean isBearishPinBar() {
@@ -36,6 +34,7 @@ public class KlineElement {
 
         // Условие для определения медвежьего пин-бара
         return upperShadow.compareTo(body.multiply(BigDecimal.valueOf(2))) > 0 &&
-                lowerShadow.compareTo(body.multiply(BigDecimal.valueOf(0.5))) < 0;
+                lowerShadow.compareTo(body.multiply(BigDecimal.valueOf(0.5))) < 0 &&
+                closePrice.compareTo(openPrice) < 0; // Закрытие ниже открытия
     }
 }

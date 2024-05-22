@@ -4,7 +4,8 @@ public enum RiskEvaluation {
     ACCEPTABLE("Acceptable Risk"),
     MEDIUM("Moderate Risk"),
     HIGH("High Risk"),
-    TOO_HIGH("Too High Risk"), LOW("Low Risk");
+    TOO_HIGH("Too High Risk"),
+    LOW("Low Risk");
 
     private final String description;
 

@@ -25,14 +25,10 @@ public class PinBarDetector {
                     List<KlineElement> klines = intervalMap.get(interval);
                     if (klines != null && !klines.isEmpty()) {
                         PinBarAnalysisResult result = getPinBarAnalysisResult(klines);
-                        signals.add(new PinBarSignal(symbol, interval, result));
+                        signals.add(new PinBarSignal(symbol, klines.get(0).getClosePrice().doubleValue(), interval, result));
                     } else {
-                        signals.add(new PinBarSignal(symbol, interval, PinBarAnalysisResult.NO_PIN_BAR));
+                        signals.add(new PinBarSignal(symbol, 0, interval, PinBarAnalysisResult.NO_PIN_BAR));
                     }
-                }
-            } else {
-                for (MarketInterval interval : intervals) {
-                    signals.add(new PinBarSignal(symbol, interval, PinBarAnalysisResult.NO_PIN_BAR));
                 }
             }
         }
