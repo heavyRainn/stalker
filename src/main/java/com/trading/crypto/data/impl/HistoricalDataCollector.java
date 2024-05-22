@@ -123,12 +123,12 @@ public class HistoricalDataCollector implements DataCollector {
             // Преобразуем JSON в LinkedHashMap
             Map<String, Object> map = StalkerUtils.getMapFromResponse(data);
 
-            LinkedHashMap<Object, Object> result = (LinkedHashMap) map.get("result");
+            LinkedHashMap<Object, Object> result = (LinkedHashMap<Object, Object>) map.get("result");
             List<List<Object>> list = (List<List<Object>>) result.get("list");
 
             // Убедиться, что существует соответствующий список для symbol и interval
-            klineCache.putIfAbsent(symbol, new HashMap<>());
-            klineCache.get(symbol).putIfAbsent(interval, new LinkedList<>());
+            klineCache.computeIfAbsent(symbol, k -> new HashMap<>())
+                    .computeIfAbsent(interval, k -> new LinkedList<>());
 
             List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
 
@@ -136,12 +136,14 @@ public class HistoricalDataCollector implements DataCollector {
                 for (int i = klineSingleData.size() - 1; i >= 0; i--) {
                     KlineElement klineElement = toKlineElement(klineSingleData.get(i));
 
-                    // TODO Предотвратить добавление дубликатов
-                    if (!symbolKlineCache.contains(klineElement)) {
-                        symbolKlineCache.add(0, klineElement);
-                        if (analyser != null) {
-                            analyser.update(symbol, interval, klineElement);
-                        }
+                    // Предотвратить добавление дубликатов
+                    if (!symbolKlineCache.isEmpty() && symbolKlineCache.get(0).getTimestamp().equals(klineElement.getTimestamp())) {
+                        continue;
+                    }
+
+                    symbolKlineCache.add(0, klineElement);
+                    if (analyser != null) {
+                        analyser.update(symbol, interval, klineElement);
                     }
                 }
             });
