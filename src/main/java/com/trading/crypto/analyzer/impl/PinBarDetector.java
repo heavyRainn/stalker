@@ -4,7 +4,6 @@ import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.model.KlineElement;
 import com.trading.crypto.model.PinBarAnalysisResult;
 import com.trading.crypto.model.PinBarSignal;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,12 +35,12 @@ public class PinBarDetector {
         return signals;
     }
 
-    private static @NotNull PinBarAnalysisResult getPinBarAnalysisResult(List<KlineElement> klines) {
-        KlineElement lastKline = klines.get(klines.size() - 1);
+    private static PinBarAnalysisResult getPinBarAnalysisResult(List<KlineElement> klines) {
+        KlineElement firstKline = klines.get(0); // Первый элемент в списке
         PinBarAnalysisResult result;
-        if (lastKline.isBullishPinBar()) {
+        if (firstKline.isBullishPinBar()) {
             result = PinBarAnalysisResult.BULLISH_PIN_BAR;
-        } else if (lastKline.isBearishPinBar()) {
+        } else if (firstKline.isBearishPinBar()) {
             result = PinBarAnalysisResult.BEARISH_PIN_BAR;
         } else {
             result = PinBarAnalysisResult.NO_PIN_BAR;
