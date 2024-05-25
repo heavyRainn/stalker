@@ -28,24 +28,34 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Убедись, что интерфейс поддерживает расчет различных типов индикаторов. Возможно, стоит предусмотреть возможность
- * расширения для добавления новых индикаторов без изменения основного кода.
+ * Класс для анализа индикаторов с использованием библиотеки Ta4j.
+ * Поддерживает расчет и обновление индикаторов для различных символов и временных интервалов.
+ * Также включает логику определения дивергенций и генерации торговых сигналов.
  */
 @Slf4j
 public class IndicatorAnalyzer implements Analyser {
 
+    // Константы для границ CCI и RSI
     public static final int CCI_LOW = -200;
     public static final int CCI_HIGH = 200;
     public static final int RSI_LOW = 30;
     public static final int RSI_HIGH = 70;
 
+    // Период для проверки дивергенций
     private static final int CHECK_PERIOD = 20;
 
+    // Карты для хранения временных рядов и индикаторов для каждого символа и временного интервала
     private final Map<String, Map<MarketInterval, TimeSeries>> seriesMap = new HashMap<>();
     private final Map<String, Map<MarketInterval, SMAIndicator>> smaMap = new HashMap<>();
     private final Map<String, Map<MarketInterval, RSIIndicator>> rsiMap = new HashMap<>();
     private final Map<String, Map<MarketInterval, CCIIndicator>> cciMap = new HashMap<>();
 
+    /**
+     * Конструктор класса, инициализирует временные ряды и индикаторы для заданных символов и временных интервалов.
+     *
+     * @param cache   Кэш исторических данных для каждого символа и временного интервала
+     * @param symbols Список символов для анализа
+     */
     public IndicatorAnalyzer(Map<String, Map<MarketInterval, List<KlineElement>>> cache, List<String> symbols) {
         for (String symbol : symbols) {
             if (cache.containsKey(symbol)) {
@@ -79,6 +89,13 @@ public class IndicatorAnalyzer implements Analyser {
         }
     }
 
+    /**
+     * Обновляет временной ряд для заданного символа и временного интервала новым элементом Kline.
+     *
+     * @param symbol       Символ, для которого обновляется временной ряд
+     * @param interval     Временной интервал
+     * @param klineElement Новый элемент Kline для добавления
+     */
     public void update(String symbol, MarketInterval interval, KlineElement klineElement) {
         if (seriesMap.containsKey(symbol)) {
             TimeSeries series = seriesMap.get(symbol).get(interval);
@@ -101,6 +118,13 @@ public class IndicatorAnalyzer implements Analyser {
         }
     }
 
+    /**
+     * Анализирует данные для заданного символа и списка временных интервалов.
+     *
+     * @param symbol    Символ для анализа
+     * @param intervals Список временных интервалов
+     * @return Список сигналов, сгенерированных на основе анализа индикаторов
+     */
     public List<Signal> analyze(String symbol, List<MarketInterval> intervals) {
         return intervals.stream()
                 .distinct()
@@ -109,6 +133,13 @@ public class IndicatorAnalyzer implements Analyser {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Вычисляет индикаторы для заданного символа и временного интервала.
+     *
+     * @param symbol   Символ для анализа
+     * @param interval Временной интервал
+     * @return Сигнал, сгенерированный на основе анализа индикаторов
+     */
     public Signal calculateIndicators(String symbol, MarketInterval interval) {
         if (seriesMap.containsKey(symbol)) {
             TimeSeries series = seriesMap.get(symbol).get(interval);
@@ -142,31 +173,29 @@ public class IndicatorAnalyzer implements Analyser {
             boolean bullishRsiDivergence = rsiPositiveDivergent.getValue(lastIndex);
             boolean bearishRsiDivergence = rsiNegativeDivergent.getValue(lastIndex);
 
-            // Log analysis before making decisions
+            // Логирование анализа перед принятием решений
             LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceAboveSMA, bullishRsiDivergence,
                     bearishRsiDivergence, bullishCciDivergence, bearishCciDivergence);
 
-        AnalysisResult signal;
-        if (lastCCI.isLessThan(PrecisionNum.valueOf(CCI_LOW + 30)) && lastRSI.isLessThan(PrecisionNum.valueOf(RSI_LOW))) {
-            if (bullishCciDivergence || bullishRsiDivergence) {
-                signal = AnalysisResult.STRONG_BUY;
+            AnalysisResult signal;
+            if (lastCCI.isLessThan(PrecisionNum.valueOf(CCI_LOW + 30)) && lastRSI.isLessThan(PrecisionNum.valueOf(RSI_LOW))) {
+                if (bullishCciDivergence || bullishRsiDivergence) {
+                    signal = AnalysisResult.STRONG_BUY;
+                } else {
+                    signal = AnalysisResult.BUY;
+                }
+            } else if (lastCCI.isGreaterThan(PrecisionNum.valueOf(CCI_HIGH - 30)) && lastRSI.isGreaterThan(PrecisionNum.valueOf(RSI_HIGH))) {
+                if (bearishCciDivergence || bearishRsiDivergence) {
+                    signal = AnalysisResult.STRONG_SELL;
+                } else {
+                    signal = AnalysisResult.SELL;
+                }
             } else {
-                signal = AnalysisResult.BUY;
+                signal = AnalysisResult.HOLD;
             }
-
-        } else if (lastCCI.isGreaterThan(PrecisionNum.valueOf(CCI_HIGH - 30)) && lastRSI.isGreaterThan(PrecisionNum.valueOf(RSI_HIGH))) {
-            if (bearishCciDivergence || bearishRsiDivergence) {
-                signal = AnalysisResult.STRONG_SELL;
-            } else {
-                signal = AnalysisResult.SELL;
-            }
-        } else {
-            signal = AnalysisResult.HOLD;
-        }
 
             return new Signal(signal, symbol, lastPrice, System.currentTimeMillis(), interval);
         }
         return null;
     }
-
 }

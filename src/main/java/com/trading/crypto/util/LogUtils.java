@@ -10,11 +10,16 @@ import org.ta4j.core.num.Num;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class LogUtils {
+
     // ANSI Escape Codes for Colors
     private static final String RESET = "\033[0m";
     private static final String YELLOW = "\033[33m";
@@ -46,7 +51,7 @@ public class LogUtils {
     private static final String ABSENT = "Absent";
 
     // Trade Signal Constants
-    private static final String TRADE_SIGNAL_FORMAT = "%sSymbol: %s, Type: %s, Entry Price: %.2f, Stop Loss: %.2f, Take Profit: %.2f, Amount: %.2f, Timestamp: %d%s";
+    private static final String TRADE_SIGNAL_FORMAT = "%sSymbol: %s, Type: %s, Entry Price: %.2f, Stop Loss: %.2f, Take Profit: %.2f, Amount: %.2f, Timestamp: %s%s";
 
     private static final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
@@ -80,32 +85,35 @@ public class LogUtils {
      * @return отформатированная строка метки времени
      */
     private static String formatTimestamp(long timestamp) {
-        return new java.text.SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new java.util.Date(timestamp));
+        return new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date(timestamp));
     }
 
     /**
      * Сохранение торговых сигналов в JSON файл
      *
-     * @param signals карта символов и соответствующих списков торговых сигналов
+     * @param signals список торговых сигналов
      */
     public static void logTradeSignalsToFile(List<TradeSignal> signals) {
-        signals.forEach(signal -> {
+        // Группировка сигналов по символам
+        Map<String, List<TradeSignal>> signalsBySymbol = signals.stream()
+                .collect(Collectors.groupingBy(TradeSignal::getSymbol));
+
+        signalsBySymbol.forEach((symbol, symbolSignals) -> {
             List<TradeSignal> existingSignals = new ArrayList<>();
 
             // Сначала считываем существующие данные
-            File file = new File(signal.getSymbol() + "_signals.json");
+            File file = new File(symbol + "_signals.json");
             if (file.exists()) {
                 try {
-                    existingSignals = mapper.readValue(file, new TypeReference<List<TradeSignal>>() {
-                    });
+                    existingSignals = mapper.readValue(file, new TypeReference<>() {});
                 } catch (IOException e) {
                     System.err.println("Ошибка при чтении файла: " + e.getMessage());
                 }
             }
 
             // Создаем новый список, объединяющий новые и существующие сигналы
-            List<TradeSignal> allSignals = new ArrayList<>(signals);
-            allSignals.addAll(existingSignals);
+            List<TradeSignal> allSignals = new ArrayList<>(existingSignals);
+            allSignals.addAll(symbolSignals);
 
             // Перезаписываем файл с обновленным списком
             try {
@@ -127,7 +135,7 @@ public class LogUtils {
         for (TradeSignal signal : signals) {
             String color = getColorForSignal(signal.getSignalType());
             String signalInfo = String.format(TRADE_SIGNAL_FORMAT, color, signal.getSymbol(), signal.getSignalType(), signal.getEntryPrice(),
-                    signal.getStopLoss(), signal.getTakeProfit(), signal.getAmount(), signal.getTimestamp(), RESET);
+                    signal.getStopLoss(), signal.getTakeProfit(), signal.getAmount(), formatTimestamp(signal.getTimestamp()), RESET);
             logMessage.append(signalInfo).append("\n");
         }
 
@@ -219,7 +227,12 @@ public class LogUtils {
                 BEARISH_CCI, bearishCciDivergence != null && bearishCciDivergence ? PRESENT : ABSENT);
     }
 
-    // Метод для логирования информации о торговых сигналах
+    /**
+     * Логирование информации о торговых сигналах
+     *
+     * @param signal     - торговый сигнал
+     * @param evaluation - оценка риска
+     */
     public static void logSignalInfo(TradeSignal signal, RiskEvaluation evaluation) {
         log.info("Signal for {}: Type: {}, Risk Level: {}, Recommended Lot Size: {}",
                 signal.getSymbol(), signal.getSignalType(), evaluation, signal.getAmount());
@@ -248,6 +261,12 @@ public class LogUtils {
         log.info(logMessage.toString());
     }
 
+    /**
+     * Получение цвета для временного интервала
+     *
+     * @param interval - временной интервал
+     * @return цвет ANSI
+     */
     private static String getIntervalColor(MarketInterval interval) {
         return switch (interval) {
             case ONE_MINUTE -> BLUE;
@@ -257,6 +276,12 @@ public class LogUtils {
         };
     }
 
+    /**
+     * Получение цвета для результата анализа пин-бара
+     *
+     * @param result - результат анализа пин-бара
+     * @return цвет ANSI
+     */
     private static String getResultColor(PinBarAnalysisResult result) {
         return switch (result) {
             case BULLISH_PIN_BAR -> GREEN;

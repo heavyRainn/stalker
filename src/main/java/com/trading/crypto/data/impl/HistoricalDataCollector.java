@@ -71,24 +71,20 @@ public class HistoricalDataCollector implements DataCollector {
         }));
     }
 
-    @Scheduled(fixedRate = 3600000) // 3600000 миллисекунд = 1 час
+    /**
+     * Метод для очистки и сортировки кэша Kline.
+     * Срабатывает раз в 30 минут.
+     */
+    @Scheduled(fixedRate = 1800000) // 1800000 миллисекунд = 30 минут
     public void cleanAndSortKlineCache() {
         // Проходим по каждому символу
         for (Map<MarketInterval, List<KlineElement>> intervalMap : klineCache.values()) {
             // Для каждого интервала обрабатываем список KlineElements
             for (List<KlineElement> intervalKlineCache : intervalMap.values()) {
                 synchronized (klineCache) {
-                    // Удаление дубликатов с помощью LinkedHashSet для сохранения порядка вставки
-                    LinkedHashSet<KlineElement> hashSet = new LinkedHashSet<>(intervalKlineCache);
-                    intervalKlineCache.clear();
-                    intervalKlineCache.addAll(hashSet);
-
-                    // Сортировка списка по timestamp в убывающем порядке
-                    intervalKlineCache.sort(Comparator.comparing(KlineElement::getTimestamp).reversed());
-
-                    // Ограничение размера списка до 10000 элементов, если необходимо
-                    if (intervalKlineCache.size() > 10000) {
-                        intervalKlineCache.subList(10000, intervalKlineCache.size()).clear();
+                    // Ограничение размера списка до 250 элементов, если необходимо
+                    if (intervalKlineCache.size() > 250) {
+                        intervalKlineCache.subList(250, intervalKlineCache.size()).clear();
                     }
                 }
             }
@@ -126,29 +122,31 @@ public class HistoricalDataCollector implements DataCollector {
             LinkedHashMap<Object, Object> result = (LinkedHashMap<Object, Object>) map.get("result");
             List<List<Object>> list = (List<List<Object>>) result.get("list");
 
-            // Убедиться, что существует соответствующий список для symbol и interval
-            klineCache.computeIfAbsent(symbol, k -> new HashMap<>())
-                    .computeIfAbsent(interval, k -> new LinkedList<>());
+            synchronized (klineCache) {
+                // Убедиться, что существует соответствующий список для symbol и interval
+                klineCache.computeIfAbsent(symbol, k -> new HashMap<>())
+                        .computeIfAbsent(interval, k -> new LinkedList<>());
 
-            List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
+                List<KlineElement> symbolKlineCache = klineCache.get(symbol).get(interval);
+                Optional.ofNullable(list).ifPresent(klineSingleData -> {
+                    for (int i = klineSingleData.size() - 1; i >= 0; i--) {
+                        KlineElement klineElement = toKlineElement(klineSingleData.get(i));
 
-            Optional.ofNullable(list).ifPresent(klineSingleData -> {
-                for (int i = klineSingleData.size() - 1; i >= 0; i--) {
-                    KlineElement klineElement = toKlineElement(klineSingleData.get(i));
+                        // Предотвратить добавление дубликатов
+                        if (!symbolKlineCache.isEmpty() && symbolKlineCache.get(0).getTimestamp().equals(klineElement.getTimestamp())) {
+                            continue;
+                        }
 
-                    // Предотвратить добавление дубликатов
-                    if (!symbolKlineCache.isEmpty() && symbolKlineCache.get(0).getTimestamp().equals(klineElement.getTimestamp())) {
-                        continue;
+                        symbolKlineCache.add(0, klineElement);
+                        if (analyser != null) {
+                            analyser.update(symbol, interval, klineElement);
+                        }
                     }
-
-                    symbolKlineCache.add(0, klineElement);
-                    if (analyser != null) {
-                        analyser.update(symbol, interval, klineElement);
-                    }
-                }
-            });
+                });
+            }
         });
     }
+
 
     /**
      * Convert Object to Kline element

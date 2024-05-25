@@ -46,7 +46,6 @@ public class WaveTrader implements Trader {
             log.info("Loading....");
             historicalDataCollector.init(symbols, intervals);
 
-            Timer timer = new Timer();
             TimerTask task = new TimerTask() {
                 @Override
                 public void run() {
@@ -61,7 +60,7 @@ public class WaveTrader implements Trader {
             };
 
             // Запуск задачи с задержкой в 1 минуту (60000 миллисекунд)
-            timer.schedule(task, 60000);
+            new Timer().schedule(task, 60000);
         }
     }
 

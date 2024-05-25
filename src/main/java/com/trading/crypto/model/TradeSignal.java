@@ -2,9 +2,11 @@ package com.trading.crypto.model;
 
 import lombok.*;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class TradeSignal {
     private AnalysisResult signalType; // Тип сигнала: BUY, SELL, STRONG_BUY, STRONG_SELL
     private String symbol;            // Символ монеты
@@ -13,5 +15,16 @@ public class TradeSignal {
     private double takeProfit;        // Уровень Take-Profit
     private double amount;            // Количество лотов для входа в сделку
     private long timestamp;           // Время создания сингала
-    //private String details;
+    private String formattedTimestamp; // Форматированное время создания сигнала
+
+    public TradeSignal(AnalysisResult signalType, String symbol, double entryPrice, double stopLoss, double takeProfit, double amount, long timestamp) {
+        this.signalType = signalType;
+        this.symbol = symbol;
+        this.entryPrice = entryPrice;
+        this.stopLoss = stopLoss;
+        this.takeProfit = takeProfit;
+        this.amount = amount;
+        this.timestamp = timestamp;
+        this.formattedTimestamp = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date(timestamp));
+    }
 }
