@@ -3,6 +3,7 @@ package com.trading.crypto.trader.impl;
 import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.analyzer.impl.IndicatorAnalyzer;
 import com.trading.crypto.analyzer.impl.PinBarDetector;
+import com.trading.crypto.client.BybitClient;
 import com.trading.crypto.data.impl.HistoricalDataCollector;
 import com.trading.crypto.manager.RiskManager;
 import com.trading.crypto.manager.StrategyManager;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,21 +25,28 @@ import java.util.stream.Collectors;
 @Component
 public class WaveTrader implements Trader {
 
-    public static final List<String> symbols = List.of("BTCUSDT", "SOLUSDT");
-    private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES, MarketInterval.HOURLY);
+    public static final List<String> symbols = List.of("FTMUSDT", "SOLUSDT", "GMTUSDT");
+    private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES);
 
     private final HistoricalDataCollector historicalDataCollector;
     private IndicatorAnalyzer indicatorAnalyzer;
     private final OrderExecutor orderExecutor;
     private final RiskManager riskManager;
     private final List<StrategyManager> strategyManagers;
+    private final BybitClient bybitClient;
+
+    /**
+     * Текущий баланс бота в USDT, обновляется после исполнения ордера или его создания
+     */
+    private BigDecimal balance;
 
     @Autowired
-    public WaveTrader(HistoricalDataCollector hdc, OrderExecutor oe, RiskManager rm, List<StrategyManager> sms) {
+    public WaveTrader(HistoricalDataCollector hdc, OrderExecutor oe, RiskManager rm, BybitClient bc, List<StrategyManager> sms) {
         this.historicalDataCollector = hdc;
         this.orderExecutor = oe;
         this.riskManager = rm;
         this.strategyManagers = sms;
+        this.bybitClient = bc;
     }
 
     @PostConstruct
@@ -54,6 +63,8 @@ public class WaveTrader implements Trader {
                         indicatorAnalyzer = new IndicatorAnalyzer(historicalDataCollector.getKlineCache(), symbols);
                         historicalDataCollector.setAnalyser(indicatorAnalyzer);
                         log.info("IndicatorAnalyzer Initialized!");
+
+                        balance = bybitClient.getBalance();
                     }
                     log.info("Loaded!");
                 }
@@ -99,7 +110,7 @@ public class WaveTrader implements Trader {
             LogUtils.logTradeSignalsToFile(signals);
 
             // Оценка рисков для выставления сделки для конкретного символа
-            Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult);
+            Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult, balance);
             log.info("Risk Evaluation results for {}: {}", symbol, riskEvaluations);
 
             riskEvaluations.forEach((signal, evaluation) -> {
@@ -107,12 +118,16 @@ public class WaveTrader implements Trader {
                     // Логируем информацию о сигнале
                     LogUtils.logSignalInfo(signal, evaluation);
 
-                    Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation);
+                    Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation, balance);
+                    log.info("RiskManager give trade {}", trade);
+
                     if (trade != null) {
                         log.warn("Risk for {} is Acceptable, executing trade: {}", null, trade);
                         try {
                             //orderExecutor.executeOrder(trade);
                             log.info("Trade executed: {}", trade);
+
+                            balance = bybitClient.getBalance();
                         } catch (Exception e) {
                             log.error("Failed to execute trade: {}", trade, e);
                         }

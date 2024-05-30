@@ -104,43 +104,6 @@ public class AIStrategyManager  {
     }
 
     /**
-     * Создание торгового сигнала на основе результатов анализа индикаторов и прогнозов ИИ
-     *
-     * @param indicatorsAnalysisResult - карта результатов анализа индикаторов
-     * @param aiPrediction             - прогноз цены от модели ИИ
-     * @param symbol                   - торговый символ (например, BTCUSDT)
-     * @return торговый сигнал
-     */
-    private TradeSignal generateTradeSignal(Map<MarketInterval, Signal> indicatorsAnalysisResult, double aiPrediction, String symbol) {
-        // Получаем первичный анализ из результатов индикаторов
-        Signal signal = indicatorsAnalysisResult.get(MarketInterval.ONE_MINUTE); // Замените на нужный интервал
-
-        // Генерируем и возвращаем торговый сигнал
-        return createTradeSignal(signal, symbol, aiPrediction, 0.05, 0.03, 1000, System.currentTimeMillis());
-    }
-
-    /**
-     * Создание объекта торгового сигнала на основе типа сигнала
-     *
-     * @param symbol     - торговый символ
-     * @param entryPrice - цена входа
-     * @param stopLoss   - уровень стоп-лосса
-     * @param takeProfit - уровень тейк-профита
-     * @param amount     - количество торговых единиц
-     * @param timestamp  - время сигнала
-     * @return объект торгового сигнала
-     */
-    private TradeSignal createTradeSignal(Signal signal, String symbol, double entryPrice, double stopLoss, double takeProfit, double amount, long timestamp) {
-        return switch (signal.getAnalysisResult()) {
-            case STRONG_BUY, BUY ->
-                    new TradeSignal(signal.getAnalysisResult(), symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
-            case STRONG_SELL, SELL ->
-                    new TradeSignal(signal.getAnalysisResult(), symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
-            default -> new TradeSignal(AnalysisResult.HOLD, symbol, 0, 0, 0, 0, timestamp);
-        };
-    }
-
-    /**
      * Создание новой модели и сохранение ее в файл
      *
      * @return экземпляр CryptoPredictionModel

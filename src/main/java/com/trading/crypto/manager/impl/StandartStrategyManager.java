@@ -22,8 +22,7 @@ public class StandartStrategyManager implements StrategyManager {
 
     @Override
     public List<TradeSignal> analyzeData(List<Signal> indicatorsAnalysisResult, List<PinBarSignal> pinBarAnalysisResult) {
-        List<TradeSignal> tradeSignals = new ArrayList<>();
-        BigDecimal balance = bybitClient.getBalance(); // Получаем текущий баланс
+        List<TradeSignal> tradeSignals = new ArrayList<>();// Получаем текущий баланс
 
         // Обработка сигналов анализа индикаторов
         for (Signal signal : indicatorsAnalysisResult) {
@@ -33,21 +32,18 @@ public class StandartStrategyManager implements StrategyManager {
             AnalysisResult result = signal.getAnalysisResult();
 
             double stopLoss, takeProfit;
-            double amount;
 
             if (result == AnalysisResult.BUY || result == AnalysisResult.STRONG_BUY) {
                 stopLoss = entryPrice - entryPrice * 0.005; // Stop-Loss на уровне 0.5% ниже цены входа
                 takeProfit = entryPrice + entryPrice * 0.015; // Take-Profit на уровне 1.5% выше цены входа
-                amount = calculateTradeAmount(balance, entryPrice);
             } else if (result == AnalysisResult.SELL || result == AnalysisResult.STRONG_SELL) {
                 stopLoss = entryPrice + entryPrice * 0.005; // Stop-Loss на уровне 0.5% выше цены входа
                 takeProfit = entryPrice - entryPrice * 0.015; // Take-Profit на уровне 1.5% ниже цены входа
-                amount = calculateTradeAmount(balance, entryPrice);
             } else {
                 continue;
             }
 
-            TradeSignal tradeSignal = new TradeSignal(result, symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
+            TradeSignal tradeSignal = new TradeSignal(result, symbol, entryPrice, stopLoss, takeProfit, SignalOrigin.INDICATORS, timestamp);
             tradeSignals.add(tradeSignal);
         }
 
@@ -66,26 +62,19 @@ public class StandartStrategyManager implements StrategyManager {
                 result = AnalysisResult.BUY;
                 stopLoss = entryPrice - entryPrice * 0.005; // Stop-Loss на уровне 0.5% ниже цены входа
                 takeProfit = entryPrice + entryPrice * 0.015; // Take-Profit на уровне 1.5% выше цены входа
-                amount = calculateTradeAmount(balance, entryPrice);
             } else if (pinBarResult == PinBarAnalysisResult.BEARISH_PIN_BAR) {
                 result = AnalysisResult.SELL;
                 stopLoss = entryPrice + entryPrice * 0.005; // Stop-Loss на уровне 0.5% выше цены входа
                 takeProfit = entryPrice - entryPrice * 0.015; // Take-Profit на уровне 1.5% ниже цены входа
-                amount = calculateTradeAmount(balance, entryPrice);
             } else {
                 continue;
             }
 
-            TradeSignal tradeSignal = new TradeSignal(result, symbol, entryPrice, stopLoss, takeProfit, amount, timestamp);
+            TradeSignal tradeSignal = new TradeSignal(result, symbol, entryPrice, stopLoss, takeProfit, SignalOrigin.PIN_BAR, timestamp);
             tradeSignals.add(tradeSignal);
         }
 
         return tradeSignals;
     }
 
-    private double calculateTradeAmount(BigDecimal balance, double entryPrice) {
-        // Входим на 95% от баланса
-        double tradeBalance = balance.doubleValue() * 0.95;
-        return tradeBalance / entryPrice;
-    }
 }

@@ -51,8 +51,7 @@ public class LogUtils {
     private static final String ABSENT = "Absent";
 
     // Trade Signal Constants
-    private static final String TRADE_SIGNAL_FORMAT = "%sSymbol: %s, Type: %s, Entry Price: %.2f, Stop Loss: %.2f, Take Profit: %.2f, Amount: %.2f, Timestamp: %s%s";
-
+    private static final String TRADE_SIGNAL_FORMAT = "%sSymbol: %s, Type: %s, Entry Price: %.2f, Stop Loss: %.2f, Take Profit: %.2f, Amount: %.2f, Origin: %s, Timestamp: %s%s";
     private static final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     /**
@@ -135,7 +134,7 @@ public class LogUtils {
         for (TradeSignal signal : signals) {
             String color = getColorForSignal(signal.getSignalType());
             String signalInfo = String.format(TRADE_SIGNAL_FORMAT, color, signal.getSymbol(), signal.getSignalType(), signal.getEntryPrice(),
-                    signal.getStopLoss(), signal.getTakeProfit(), signal.getAmount(), formatTimestamp(signal.getTimestamp()), RESET);
+                    signal.getStopLoss(), signal.getTakeProfit(), signal.getAmount(), signal.getOrigin(), formatTimestamp(signal.getTimestamp()), RESET);
             logMessage.append(signalInfo).append("\n");
         }
 

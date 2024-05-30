@@ -27,16 +27,15 @@ public class StandartRiskManager implements RiskManager {
     /**
      * Оценивает риск для каждого торгового сигнала.
      *
-     * @param signals список торговых сигналов.
+     * @param signals                  список торговых сигналов.
      * @param indicatorsAnalysisResult результаты анализа индикаторов.
+     * @param balance
      * @return карта торговых сигналов и их оценок риска.
      */
     @Override
-    public Map<TradeSignal, RiskEvaluation> evaluateRisk(List<TradeSignal> signals, List<Signal> indicatorsAnalysisResult) {
+    public Map<TradeSignal, RiskEvaluation> evaluateRisk(List<TradeSignal> signals, List<Signal> indicatorsAnalysisResult, BigDecimal balance) {
         Map<TradeSignal, RiskEvaluation> riskEvaluations = new HashMap<>();
 
-        // Получаем текущий баланс с Bybit
-        BigDecimal balance = bybitClient.getBalance();
         if (balance.compareTo(BigDecimal.valueOf(5)) < 0) {
             log.info("No enough money on balance: {}", balance);
             return riskEvaluations;
@@ -71,14 +70,13 @@ public class StandartRiskManager implements RiskManager {
     /**
      * Подготавливает торговую сделку на основе торгового сигнала и оценки риска.
      *
-     * @param signal торговый сигнал.
+     * @param signal     торговый сигнал.
      * @param evaluation оценка риска.
+     * @param balance
      * @return объект Trade, представляющий сделку.
      */
     @Override
-    public Trade evaluateAndPrepareTrade(TradeSignal signal, RiskEvaluation evaluation) {
-        // Получаем текущий баланс с Bybit
-        BigDecimal balance = bybitClient.getBalance();
+    public Trade evaluateAndPrepareTrade(TradeSignal signal, RiskEvaluation evaluation, BigDecimal balance) {
         double amount = calculateTradeAmount(balance.doubleValue(), signal.getEntryPrice());
 
         // Рассчитываем Stop-Loss и Take-Profit на основе процентных значений
