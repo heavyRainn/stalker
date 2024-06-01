@@ -78,6 +78,7 @@ public class WaveTrader implements Trader {
     @Override
     @Scheduled(fixedRate = 60000)
     public void haunt() {
+        BigDecimal btcusdt = bybitClient.getCurrentPrice("BTCUSDT");
         if (indicatorAnalyzer == null) {
             log.info("Trader Loading....");
             return;
@@ -124,7 +125,7 @@ public class WaveTrader implements Trader {
                     if (trade != null) {
                         log.warn("Risk for {} is Acceptable, executing trade: {}", null, trade);
                         try {
-                            //orderExecutor.executeOrder(trade);
+                            orderExecutor.executeOrder(trade);
                             log.info("Trade executed: {}", trade);
 
                             balance = bybitClient.getBalance();

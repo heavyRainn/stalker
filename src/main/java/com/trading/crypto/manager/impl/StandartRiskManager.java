@@ -1,5 +1,6 @@
 package com.trading.crypto.manager.impl;
 
+import com.bybit.api.client.domain.trade.Side;
 import com.trading.crypto.client.BybitClient;
 import com.trading.crypto.manager.RiskManager;
 import com.trading.crypto.model.*;
@@ -19,7 +20,6 @@ import java.util.Map;
 @Slf4j
 @Component
 public class StandartRiskManager implements RiskManager {
-    private static final double RISK_PER_TRADE = 0.01; // Рисковать 1% баланса на сделку
 
     @Autowired
     private BybitClient bybitClient;
@@ -29,7 +29,7 @@ public class StandartRiskManager implements RiskManager {
      *
      * @param signals                  список торговых сигналов.
      * @param indicatorsAnalysisResult результаты анализа индикаторов.
-     * @param balance
+     * @param balance                  текущий баланс.
      * @return карта торговых сигналов и их оценок риска.
      */
     @Override
@@ -55,7 +55,6 @@ public class StandartRiskManager implements RiskManager {
                 }
                 case STRONG_SELL, SELL -> {
                     // Средний риск для продаж, высокий - для сильных продаж
-                    evaluation = signal.getSignalType() == AnalysisResult.STRONG_SELL ? RiskEvaluation.HIGH : RiskEvaluation.MEDIUM;
                 }
                 case HOLD ->
                     // Минимальный риск, но торговля не рекомендуется
@@ -72,7 +71,7 @@ public class StandartRiskManager implements RiskManager {
      *
      * @param signal     торговый сигнал.
      * @param evaluation оценка риска.
-     * @param balance
+     * @param balance    текущий баланс.
      * @return объект Trade, представляющий сделку.
      */
     @Override
@@ -83,7 +82,15 @@ public class StandartRiskManager implements RiskManager {
         double stopLoss = signal.getEntryPrice() - signal.getEntryPrice() * 0.005;
         double takeProfit = signal.getEntryPrice() + signal.getEntryPrice() * 0.015;
 
-        return new Trade(signal.getSymbol(), signal.getEntryPrice(), stopLoss, takeProfit, amount);
+        return new Trade(signal.getSymbol(), signal.getEntryPrice(), stopLoss, takeProfit, amount, getSide(signal.getSignalType()));
+    }
+
+    private Side getSide(AnalysisResult signalType) {
+        return switch (signalType) {
+            case STRONG_BUY, BUY -> Side.BUY;
+            case STRONG_SELL, SELL -> Side.SELL;
+            default -> throw new IllegalArgumentException("Invalid signal type: " + signalType);
+        };
     }
 
     /**
@@ -94,9 +101,8 @@ public class StandartRiskManager implements RiskManager {
      * @return количество лотов для торговли.
      */
     private double calculateTradeAmount(double balance, double entryPrice) {
-        // Входим всем депозитом минус 3%
-        double riskBalance = balance * 0.97;
-        double riskAmount = riskBalance * RISK_PER_TRADE;
-        return riskAmount / entryPrice;
+        // Входим 97% от текущего баланса
+        double riskBalance = balance * 0.3;
+        return riskBalance / entryPrice;
     }
 }

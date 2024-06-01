@@ -4,6 +4,7 @@ import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.analyzer.Analyser;
 import com.trading.crypto.model.AnalysisResult;
 import com.trading.crypto.model.KlineElement;
+import com.trading.crypto.model.PinBarSignal;
 import com.trading.crypto.model.Signal;
 import com.trading.crypto.util.LogUtils;
 import com.trading.crypto.util.StalkerUtils;

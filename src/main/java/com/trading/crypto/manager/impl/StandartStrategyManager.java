@@ -1,5 +1,6 @@
 package com.trading.crypto.manager.impl;
 
+import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.client.BybitClient;
 import com.trading.crypto.data.impl.HistoricalDataCollector;
 import com.trading.crypto.manager.StrategyManager;
@@ -53,10 +54,14 @@ public class StandartStrategyManager implements StrategyManager {
             double entryPrice = pinBarSignal.getEntryPrice(); // Получить последнюю цену для символа и интервала
             long timestamp = System.currentTimeMillis();
             PinBarAnalysisResult pinBarResult = pinBarSignal.getResult();
+            BigDecimal volume = pinBarSignal.getVolume();
+
+            // Проверка объемов (например, объем должен быть выше среднего за последние n свечей)
+            if (!isHighVolume(volume, symbol, pinBarSignal.getInterval())) {
+                continue; // Пропустить, если объемы недостаточно высоки
+            }
 
             double stopLoss, takeProfit;
-            double amount;
-
             AnalysisResult result;
             if (pinBarResult == PinBarAnalysisResult.BULLISH_PIN_BAR) {
                 result = AnalysisResult.BUY;
@@ -75,6 +80,30 @@ public class StandartStrategyManager implements StrategyManager {
         }
 
         return tradeSignals;
+    }
+
+    /**
+     * Проверяет, превышает ли текущий объем средний объем за последние n свечей.
+     *
+     * @param volume   текущий объем.
+     * @param symbol   торговый символ.
+     * @param interval временной интервал.
+     * @return true, если объем превышает средний объем за последние n свечей, иначе false.
+     */
+    public boolean isHighVolume(BigDecimal volume, String symbol, MarketInterval interval) {
+        List<KlineElement> recentKlines = dataCollector.getKlineCache().get(symbol).get(interval).subList(0, 15);
+
+        if (recentKlines.isEmpty()) {
+            return false; // Если нет данных, возвращаем false
+        }
+
+        BigDecimal totalVolume = BigDecimal.ZERO;
+        for (KlineElement kline : recentKlines) {
+            totalVolume = totalVolume.add(kline.getVolume());
+        }
+
+        BigDecimal averageVolume = totalVolume.divide(BigDecimal.valueOf(recentKlines.size()), BigDecimal.ROUND_HALF_UP);
+        return volume.compareTo(averageVolume) > 0;
     }
 
 }

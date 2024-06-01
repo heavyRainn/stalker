@@ -1,5 +1,6 @@
 package com.trading.crypto.model;
 
+import com.bybit.api.client.domain.trade.Side;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -11,4 +12,5 @@ public class Trade {
     private double stopLoss;
     private double takeProfit;
     private double amount;
+    private Side side;
 }

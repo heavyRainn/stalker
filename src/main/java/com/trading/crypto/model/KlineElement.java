@@ -16,25 +16,35 @@ public class KlineElement {
     private BigDecimal volume;
     private BigDecimal turnover;
 
-    public boolean isBullishPinBar() {
+    public boolean isBullishPinBar(KlineElement previousCandle) {
         BigDecimal body = closePrice.subtract(openPrice).abs();
         BigDecimal upperShadow = highPrice.subtract(closePrice.max(openPrice));
         BigDecimal lowerShadow = openPrice.min(closePrice).subtract(lowPrice);
 
-        // Условие для определения бычьего пин-бара
-        return lowerShadow.compareTo(body.multiply(BigDecimal.valueOf(2))) > 0 &&
+        // Условия для бычьего пин-бара
+        return previousCandle.isBearish() &&
+                lowerShadow.compareTo(body.multiply(BigDecimal.valueOf(2))) > 0 &&
                 upperShadow.compareTo(body.multiply(BigDecimal.valueOf(0.5))) < 0 &&
-                closePrice.compareTo(openPrice) > 0; // Закрытие выше открытия
+                closePrice.compareTo(openPrice) > 0;
     }
 
-    public boolean isBearishPinBar() {
+    public boolean isBearishPinBar(KlineElement previousCandle) {
         BigDecimal body = openPrice.subtract(closePrice).abs();
         BigDecimal upperShadow = highPrice.subtract(openPrice.max(closePrice));
         BigDecimal lowerShadow = openPrice.min(closePrice).subtract(lowPrice);
 
-        // Условие для определения медвежьего пин-бара
-        return upperShadow.compareTo(body.multiply(BigDecimal.valueOf(2))) > 0 &&
+        // Условия для медвежьего пин-бара
+        return previousCandle.isBullish() &&
+                upperShadow.compareTo(body.multiply(BigDecimal.valueOf(2))) > 0 &&
                 lowerShadow.compareTo(body.multiply(BigDecimal.valueOf(0.5))) < 0 &&
-                closePrice.compareTo(openPrice) < 0; // Закрытие ниже открытия
+                closePrice.compareTo(openPrice) < 0;
+    }
+
+    private boolean isBullish() {
+        return closePrice.compareTo(openPrice) > 0;
+    }
+
+    private boolean isBearish() {
+        return closePrice.compareTo(openPrice) < 0;
     }
 }
