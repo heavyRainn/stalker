@@ -37,10 +37,10 @@ import java.util.stream.IntStream;
 public class IndicatorAnalyzer implements Analyser {
 
     // Константы для границ CCI и RSI
-    public static final int CCI_LOW = -200;
-    public static final int CCI_HIGH = 200;
-    public static final int RSI_LOW = 30;
-    public static final int RSI_HIGH = 70;
+    public static final int CCI_LOW = -210;
+    public static final int CCI_HIGH = 210;
+    public static final int RSI_LOW = 20;
+    public static final int RSI_HIGH = 80;
 
     // Период для проверки дивергенций
     private static final int CHECK_PERIOD = 20;
@@ -179,13 +179,13 @@ public class IndicatorAnalyzer implements Analyser {
                     bearishRsiDivergence, bullishCciDivergence, bearishCciDivergence);
 
             AnalysisResult signal;
-            if (lastCCI.isLessThan(PrecisionNum.valueOf(CCI_LOW + 30)) && lastRSI.isLessThan(PrecisionNum.valueOf(RSI_LOW))) {
+            if (lastCCI.isLessThan(PrecisionNum.valueOf(CCI_LOW)) && lastRSI.isLessThan(PrecisionNum.valueOf(RSI_LOW))) {
                 if (bullishCciDivergence || bullishRsiDivergence) {
                     signal = AnalysisResult.STRONG_BUY;
                 } else {
                     signal = AnalysisResult.BUY;
                 }
-            } else if (lastCCI.isGreaterThan(PrecisionNum.valueOf(CCI_HIGH - 30)) && lastRSI.isGreaterThan(PrecisionNum.valueOf(RSI_HIGH))) {
+            } else if (lastCCI.isGreaterThan(PrecisionNum.valueOf(CCI_HIGH)) && lastRSI.isGreaterThan(PrecisionNum.valueOf(RSI_HIGH))) {
                 if (bearishCciDivergence || bearishRsiDivergence) {
                     signal = AnalysisResult.STRONG_SELL;
                 } else {

@@ -48,6 +48,8 @@ public class StandartStrategyManager implements StrategyManager {
             tradeSignals.add(tradeSignal);
         }
 
+        if (pinBarAnalysisResult == null) return tradeSignals;
+
         // Обработка сигналов анализа пин-баров
         for (PinBarSignal pinBarSignal : pinBarAnalysisResult) {
             String symbol = pinBarSignal.getSymbol();

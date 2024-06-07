@@ -102,7 +102,7 @@ public class StandartRiskManager implements RiskManager {
      */
     private double calculateTradeAmount(double balance, double entryPrice) {
         // Входим 97% от текущего баланса
-        double riskBalance = balance * 0.3;
+        double riskBalance = balance * 0.9;
         return riskBalance / entryPrice;
     }
 }

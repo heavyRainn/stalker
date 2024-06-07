@@ -147,7 +147,6 @@ public class HistoricalDataCollector implements DataCollector {
         });
     }
 
-
     /**
      * Convert Object to Kline element
      *

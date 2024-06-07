@@ -54,6 +54,7 @@ public class WaveTrader implements Trader {
         if (indicatorAnalyzer == null) {
             log.info("Loading....");
             historicalDataCollector.init(symbols, intervals);
+            balance = bybitClient.getBalance();
 
             TimerTask task = new TimerTask() {
                 @Override
@@ -63,10 +64,8 @@ public class WaveTrader implements Trader {
                         indicatorAnalyzer = new IndicatorAnalyzer(historicalDataCollector.getKlineCache(), symbols);
                         historicalDataCollector.setAnalyser(indicatorAnalyzer);
                         log.info("IndicatorAnalyzer Initialized!");
-
-                        balance = bybitClient.getBalance();
                     }
-                    log.info("Loaded!");
+                    log.info("Loaded! Balance:{}", balance);
                 }
             };
 
@@ -78,10 +77,17 @@ public class WaveTrader implements Trader {
     @Override
     @Scheduled(fixedRate = 60000)
     public void haunt() {
-        BigDecimal btcusdt = bybitClient.getCurrentPrice("BTCUSDT");
         if (indicatorAnalyzer == null) {
             log.info("Trader Loading....");
             return;
+        }
+
+        if (balance.doubleValue() < 5) {
+            balance = bybitClient.getBalance();
+            log.info("Balance is less than 5 USDT, current: {}", balance);
+            return;
+        } else {
+            log.info("Balance: {}", balance);
         }
 
         for (String symbol : symbols) {
@@ -107,8 +113,8 @@ public class WaveTrader implements Trader {
             }
 
             log.info("------------------------------- Signals for symbol: " + symbol + " -----------------------------------------------/");
-            LogUtils.logTradeSignals(signals);
-            LogUtils.logTradeSignalsToFile(signals);
+            //LogUtils.logTradeSignals(signals);
+            //LogUtils.logTradeSignalsToFile(signals);
 
             // Оценка рисков для выставления сделки для конкретного символа
             Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult, balance);
@@ -118,6 +124,9 @@ public class WaveTrader implements Trader {
                 if (RiskEvaluation.ACCEPTABLE.equals(evaluation)) {
                     // Логируем информацию о сигнале
                     LogUtils.logSignalInfo(signal, evaluation);
+                    List<TradeSignal> list = List.of(signal);
+                    LogUtils.logTradeSignals(list);
+                    LogUtils.logTradeSignalsToFile(list);
 
                     Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation, balance);
                     log.info("RiskManager give trade {}", trade);

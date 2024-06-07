@@ -68,7 +68,7 @@ public class BybitClient {
         try {
             AccountDataRequest request = AccountDataRequest.builder()
                     .accountType(AccountType.UNIFIED)
-                    .baseCoin("USDT")
+                    .coin("USDT")
                     .build();
 
             Map<String, Object> response = (Map<String, Object>) apiRestClient.getWalletBalance(request);
@@ -87,10 +87,10 @@ public class BybitClient {
                     }
                 }
             }
-            return BigDecimal.valueOf(100);
+            return BigDecimal.valueOf(0);
         } catch (Exception e) {
             log.error("Exception while fetching balance info USDT", e);
-            return BigDecimal.valueOf(100);
+            return BigDecimal.valueOf(0);
         }
     }
 
@@ -108,7 +108,7 @@ public class BybitClient {
 
         try {
             MarketDataRequest request = MarketDataRequest.builder()
-                    .symbol(symbol)
+                    .baseCoin(symbol)
                     .category(CategoryType.LINEAR)
                     .build();
 
@@ -138,17 +138,17 @@ public class BybitClient {
     public boolean placeLimitOrder(Trade trade) {
         try {
             TradeOrderRequest orderRequest = createTradeOrderRequest(trade);
-//            tradeRestClient.createOrder(orderRequest, new BybitApiCallback<>() {
-//                @Override
-//                public void onResponse(Object response) {
-//                    log.info("Order placed successfully: {}", response);
-//                }
-//
-//                @Override
-//                public void onFailure(Throwable throwable) {
-//                    log.error("Failed to place order for symbol: {}", trade.getSymbol(), throwable);
-//                }
-//            });
+            tradeRestClient.createOrder(orderRequest, new BybitApiCallback<>() {
+                @Override
+                public void onResponse(Object response) {
+                    log.info("Order placed successfully: {}", response);
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    log.error("Failed to place order for symbol: {}", trade.getSymbol(), throwable);
+                }
+            });
             return true;
         } catch (Exception e) {
             log.error("Exception while placing limit order for symbol: {}", trade.getSymbol(), e);
