@@ -62,11 +62,14 @@ public class HistoricalDataCollector implements DataCollector {
 
         // подтягивание значений по каждому символу и интервалу
         intervals.forEach(interval -> symbols.forEach(symbol -> {
-            List<KlineElement> elements = klineCache.get(symbol).get(interval);
-            if (elements != null && !elements.isEmpty()) {
-                pullKline(symbol, interval, elements.get(0).getTimestamp());
-            } else {
-                log.error("No data available for symbol {} and interval {}", symbol, interval);
+            Map<MarketInterval, List<KlineElement>> marketIntervalListMap = klineCache.get(symbol);
+            if (marketIntervalListMap != null) {
+                List<KlineElement> elements = marketIntervalListMap.get(interval);
+                if (elements != null && !elements.isEmpty()) {
+                    pullKline(symbol, interval, elements.get(0).getTimestamp());
+                } else {
+                    log.error("No data available for symbol {} and interval {}", symbol, interval);
+                }
             }
         }));
     }

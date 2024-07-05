@@ -37,10 +37,10 @@ import java.util.stream.IntStream;
 public class IndicatorAnalyzer implements Analyser {
 
     // Константы для границ CCI и RSI
-    public static final int CCI_LOW = -210;
-    public static final int CCI_HIGH = 210;
-    public static final int RSI_LOW = 20;
-    public static final int RSI_HIGH = 80;
+    public static final int CCI_LOW = -200;
+    public static final int CCI_HIGH = 200;
+    public static final int RSI_LOW = 25;
+    public static final int RSI_HIGH = 75;
 
     // Период для проверки дивергенций
     private static final int CHECK_PERIOD = 20;

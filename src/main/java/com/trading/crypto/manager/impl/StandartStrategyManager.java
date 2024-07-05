@@ -23,7 +23,7 @@ public class StandartStrategyManager implements StrategyManager {
 
     @Override
     public List<TradeSignal> analyzeData(List<Signal> indicatorsAnalysisResult, List<PinBarSignal> pinBarAnalysisResult) {
-        List<TradeSignal> tradeSignals = new ArrayList<>();// Получаем текущий баланс
+        List<TradeSignal> tradeSignals = new ArrayList<>();
 
         // Обработка сигналов анализа индикаторов
         for (Signal signal : indicatorsAnalysisResult) {
@@ -53,14 +53,13 @@ public class StandartStrategyManager implements StrategyManager {
         // Обработка сигналов анализа пин-баров
         for (PinBarSignal pinBarSignal : pinBarAnalysisResult) {
             String symbol = pinBarSignal.getSymbol();
-            double entryPrice = pinBarSignal.getEntryPrice(); // Получить последнюю цену для символа и интервала
+            double entryPrice = pinBarSignal.getEntryPrice();
             long timestamp = System.currentTimeMillis();
             PinBarAnalysisResult pinBarResult = pinBarSignal.getResult();
             BigDecimal volume = pinBarSignal.getVolume();
 
-            // Проверка объемов (например, объем должен быть выше среднего за последние n свечей)
             if (!isHighVolume(volume, symbol, pinBarSignal.getInterval())) {
-                continue; // Пропустить, если объемы недостаточно высоки
+                continue;
             }
 
             double stopLoss, takeProfit;

@@ -6,7 +6,6 @@ import com.bybit.api.client.domain.TradeOrderType;
 import com.bybit.api.client.domain.account.AccountType;
 import com.bybit.api.client.domain.account.request.AccountDataRequest;
 import com.bybit.api.client.domain.market.request.MarketDataRequest;
-import com.bybit.api.client.domain.trade.Side;
 import com.bybit.api.client.domain.trade.TimeInForce;
 import com.bybit.api.client.domain.trade.request.TradeOrderRequest;
 import com.bybit.api.client.restApi.BybitApiAccountRestClient;
@@ -15,6 +14,7 @@ import com.bybit.api.client.restApi.BybitApiCallback;
 import com.bybit.api.client.restApi.BybitApiMarketRestClient;
 import com.bybit.api.client.service.BybitApiClientFactory;
 import com.trading.crypto.model.Trade;
+import com.trading.crypto.util.StalkerUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -81,7 +81,7 @@ public class BybitClient {
                         List<Map<String, Object>> coins = (List) balanceInfo.get("coin");
                         for (Map<String, Object> map: coins) {
                             if ("USDT".equals(map.get("coin"))) {
-                                return new BigDecimal((String) map.get("equity"));
+                                return new BigDecimal((String) map.get("availableToWithdraw"));
                             }
                         }
                     }
@@ -119,19 +119,20 @@ public class BybitClient {
                     Map<String, Object> resultMap = (Map<String, Object>) responseMap.get("result");
                     if (resultMap.containsKey("list")) {
                         List<Map<String, Object>> list = (List<Map<String, Object>>) resultMap.get("list");
-                        if (!list.isEmpty()) {
-                            Map<String, Object> tickerData = list.get(0);
-                            if (tickerData.containsKey("lastPrice")) {
-                                return new BigDecimal(tickerData.get("lastPrice").toString());
+                        for (Map<String, Object> tickerData : list) {
+                            if (tickerData.containsKey("symbol") && symbol.equals(tickerData.get("symbol").toString())) {
+                                if (tickerData.containsKey("markPrice")) {
+                                    return new BigDecimal(tickerData.get("markPrice").toString());
+                                }
                             }
                         }
                     }
                 }
             }
-            return BigDecimal.valueOf(-1);
+            return BigDecimal.valueOf(0);
         } catch (Exception e) {
             log.error("Exception while fetching current price for symbol: {}", symbol, e);
-            return BigDecimal.valueOf(-1);
+            return BigDecimal.valueOf(0);
         }
     }
 
@@ -162,7 +163,7 @@ public class BybitClient {
                 .symbol(trade.getSymbol())
                 .side(trade.getSide())
                 .orderType(TradeOrderType.LIMIT)
-                .qty(String.valueOf(trade.getAmount()))
+                .qty(StalkerUtils.getFormattedAmount(trade.getAmount(), trade.getSymbol()))
                 .price(String.valueOf(trade.getEntryPrice()))
                 .timeInForce(TimeInForce.GTC)
                 .takeProfit(String.valueOf(trade.getTakeProfit()))

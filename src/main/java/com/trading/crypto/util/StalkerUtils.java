@@ -7,6 +7,8 @@ import com.trading.crypto.model.KlineElement;
 import org.ta4j.core.BaseBar;
 import org.ta4j.core.num.PrecisionNum;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -36,5 +38,16 @@ public class StalkerUtils {
             throw new RuntimeException(e);
         }
         return map;
+    }
+
+    public static String getFormattedAmount(double amount, String symbol) {
+        int newScale = 2;
+        if ("ADAUSDT".equals(symbol))
+        {
+            newScale = 0;
+        }
+        BigDecimal amountBigDecimal = BigDecimal.valueOf(amount).setScale(newScale, RoundingMode.DOWN);
+        amountBigDecimal = amountBigDecimal.stripTrailingZeros();
+        return amountBigDecimal.toPlainString();
     }
 }

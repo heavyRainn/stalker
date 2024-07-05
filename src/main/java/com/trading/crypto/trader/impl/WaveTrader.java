@@ -25,8 +25,9 @@ import java.util.stream.Collectors;
 @Component
 public class WaveTrader implements Trader {
 
-    public static final List<String> symbols = List.of("FTMUSDT", "SOLUSDT", "GMTUSDT");
-    private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES);
+    public static final List<String> symbols = List.of("FTMUSDT", "AVAXUSDT", "ADAUSDT", "GMTUSDT", "DOTUSDT", "1INCHUSDT");
+    private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE);
+    //private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES);
 
     private final HistoricalDataCollector historicalDataCollector;
     private IndicatorAnalyzer indicatorAnalyzer;
@@ -85,7 +86,6 @@ public class WaveTrader implements Trader {
         if (balance.doubleValue() < 5) {
             balance = bybitClient.getBalance();
             log.info("Balance is less than 5 USDT, current: {}", balance);
-            return;
         } else {
             log.info("Balance: {}", balance);
         }
@@ -116,6 +116,11 @@ public class WaveTrader implements Trader {
             //LogUtils.logTradeSignals(signals);
             //LogUtils.logTradeSignalsToFile(signals);
 
+            if (balance.doubleValue() < 5) {
+                log.info("Balance is less than 5 USDT, current: {}. Return", balance);
+                return;
+            }
+
             // Оценка рисков для выставления сделки для конкретного символа
             Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult, balance);
             log.info("Risk Evaluation results for {}: {}", symbol, riskEvaluations);
@@ -132,7 +137,7 @@ public class WaveTrader implements Trader {
                     log.info("RiskManager give trade {}", trade);
 
                     if (trade != null) {
-                        log.warn("Risk for {} is Acceptable, executing trade: {}", null, trade);
+                        log.warn("Risk for is Acceptable, executing trade: {}", trade);
                         try {
                             orderExecutor.executeOrder(trade);
                             log.info("Trade executed: {}", trade);
