@@ -12,10 +12,13 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 public class StalkerUtils {
+
+    // Список символов, для которых округляем amount до целого числа
+    private static final Set<String> WHOLE_NUMBER_SYMBOLS = new HashSet<>(Arrays.asList("FTMUSDT", "GMTUSDT", "ADAUSDT"));
+
     public static BaseBar convertToBaseBar(KlineElement klineElement) {
         return new BaseBar(
                 Duration.ofMinutes(1), // Продолжительность бара, например, 1 минута
@@ -40,12 +43,21 @@ public class StalkerUtils {
         return map;
     }
 
+    /**
+     * Возвращает форматированное значение amount в зависимости от символа.
+     *
+     * @param amount значение для округления
+     * @param symbol символ торговой пары
+     * @return отформатированное значение amount
+     */
     public static String getFormattedAmount(double amount, String symbol) {
-        int newScale = 2;
-        if ("ADAUSDT".equals(symbol))
-        {
+        int newScale = 1; // Значение по умолчанию
+
+        // Проверка символа и установка нужного масштаба
+        if (WHOLE_NUMBER_SYMBOLS.contains(symbol)) {
             newScale = 0;
         }
+
         BigDecimal amountBigDecimal = BigDecimal.valueOf(amount).setScale(newScale, RoundingMode.DOWN);
         amountBigDecimal = amountBigDecimal.stripTrailingZeros();
         return amountBigDecimal.toPlainString();

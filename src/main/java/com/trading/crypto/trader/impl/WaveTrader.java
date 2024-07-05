@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 @Component
 public class WaveTrader implements Trader {
 
-    public static final List<String> symbols = List.of("FTMUSDT", "AVAXUSDT", "ADAUSDT", "GMTUSDT", "DOTUSDT", "1INCHUSDT");
+    public static final List<String> symbols = List.of("FTMUSDT", "AVAXUSDT", "ADAUSDT", "GMTUSDT", "DOTUSDT", "1INCHUSDT", "NEARUSDT", "TONUSDT");
     private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE);
     //private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES);
 
@@ -141,6 +141,9 @@ public class WaveTrader implements Trader {
                         try {
                             orderExecutor.executeOrder(trade);
                             log.info("Trade executed: {}", trade);
+
+                            // Сохранение сделки в файл
+                            LogUtils.logTradeToFile(trade);
 
                             balance = bybitClient.getBalance();
                         } catch (Exception e) {

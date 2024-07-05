@@ -5,6 +5,7 @@ import com.trading.crypto.client.BybitClient;
 import com.trading.crypto.data.impl.HistoricalDataCollector;
 import com.trading.crypto.manager.StrategyManager;
 import com.trading.crypto.model.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +13,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Component
 public class StandartStrategyManager implements StrategyManager {
 
@@ -49,9 +51,10 @@ public class StandartStrategyManager implements StrategyManager {
         }
 
         if (pinBarAnalysisResult == null) return tradeSignals;
+        List<PinBarSignal> pinBars = pinBarAnalysisResult.stream().filter(pinBarSignal -> !PinBarAnalysisResult.NO_PIN_BAR.equals(pinBarSignal.getResult())).toList();
 
         // Обработка сигналов анализа пин-баров
-        for (PinBarSignal pinBarSignal : pinBarAnalysisResult) {
+        for (PinBarSignal pinBarSignal : pinBars) {
             String symbol = pinBarSignal.getSymbol();
             double entryPrice = pinBarSignal.getEntryPrice();
             long timestamp = System.currentTimeMillis();
@@ -59,6 +62,7 @@ public class StandartStrategyManager implements StrategyManager {
             BigDecimal volume = pinBarSignal.getVolume();
 
             if (!isHighVolume(volume, symbol, pinBarSignal.getInterval())) {
+                log.info("Not high volume for pin bar, symbol:{}, volume:{}, interval:{}", symbol, volume, pinBarSignal.getInterval());
                 continue;
             }
 
@@ -92,11 +96,14 @@ public class StandartStrategyManager implements StrategyManager {
      * @return true, если объем превышает средний объем за последние n свечей, иначе false.
      */
     public boolean isHighVolume(BigDecimal volume, String symbol, MarketInterval interval) {
-        List<KlineElement> recentKlines = dataCollector.getKlineCache().get(symbol).get(interval).subList(0, 15);
+        List<KlineElement> klines = dataCollector.getKlineCache().get(symbol).get(interval);
 
-        if (recentKlines.isEmpty()) {
+        if (klines == null || klines.size() < 5) {
+            log.warn("Not enough data for symbol: {} and interval: {}", symbol, interval);
             return false; // Если нет данных, возвращаем false
         }
+
+        List<KlineElement> recentKlines = klines.subList(0, 5);
 
         BigDecimal totalVolume = BigDecimal.ZERO;
         for (KlineElement kline : recentKlines) {
@@ -104,7 +111,13 @@ public class StandartStrategyManager implements StrategyManager {
         }
 
         BigDecimal averageVolume = totalVolume.divide(BigDecimal.valueOf(recentKlines.size()), BigDecimal.ROUND_HALF_UP);
-        return volume.compareTo(averageVolume) > 0;
+        boolean isHighVolume = volume.compareTo(averageVolume) > 0;
+
+        log.info("Volume check for symbol: {}, interval: {} - Current Volume: {}, Average Volume: {}, High Volume: {}",
+                symbol, interval, volume, averageVolume, isHighVolume);
+
+        return isHighVolume;
     }
+
 
 }

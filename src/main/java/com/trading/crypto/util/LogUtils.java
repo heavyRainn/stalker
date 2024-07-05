@@ -67,11 +67,11 @@ public class LogUtils {
 
         StringBuilder logMessage = new StringBuilder("\nAnalysis Results:");
         analysisResults.forEach(signal -> {
-            logMessage.append("\n\tInterval: \033[35m").append(signal.getInterval()).append("\033[0m")
+            logMessage.append("\n\tInterval: ").append(PURPLE).append(signal.getInterval()).append(RESET)
                     .append(" - Result: ").append(formatResult(signal.getAnalysisResult()))
-                    .append(", Pair: ").append(signal.getAsset())
-                    .append(", Price: ").append(signal.getPrice())
-                    .append(", Timestamp: ").append(formatTimestamp(signal.getTimestamp()));
+                    .append(", Pair: ").append(CYAN).append(signal.getAsset()).append(RESET)
+                    .append(", Price: ").append(MAGENTA).append(signal.getPrice()).append(RESET)
+                    .append(", Timestamp: ").append(BLUE).append(formatTimestamp(signal.getTimestamp())).append(RESET);
         });
 
         log.info(logMessage.toString());
@@ -121,6 +121,35 @@ public class LogUtils {
                 System.err.println("Ошибка при записи в файл: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * Сохранение сделки в JSON файл
+     *
+     * @param trade сделка для сохранения
+     */
+    public static void logTradeToFile(Trade trade) {
+        List<Trade> existingTrades = new ArrayList<>();
+        File file = new File(trade.getSymbol() + "_orders.json");
+
+        // Считываем существующие сделки из файла, если файл существует
+        if (file.exists()) {
+            try {
+                existingTrades = mapper.readValue(file, new TypeReference<>() {});
+            } catch (IOException e) {
+                System.err.println("Ошибка при чтении файла: " + e.getMessage());
+            }
+        }
+
+        // Добавляем новую сделку к существующим
+        existingTrades.add(trade);
+
+        // Перезаписываем файл с обновленным списком сделок
+        try {
+            mapper.writeValue(file, existingTrades);
+        } catch (IOException e) {
+            System.err.println("Ошибка при записи в файл: " + e.getMessage());
+        }
     }
 
     /**
@@ -252,7 +281,7 @@ public class LogUtils {
         pinBarSignals.forEach(signal -> {
             String intervalColor = getIntervalColor(signal.getInterval());
             String resultColor = getResultColor(signal.getResult());
-            logMessage.append("\n\tSymbol: ").append(signal.getSymbol())
+            logMessage.append("\n\tSymbol: ").append(CYAN).append(signal.getSymbol()).append(RESET)
                     .append(", Interval: ").append(intervalColor).append(signal.getInterval()).append(RESET)
                     .append(", Result: ").append(resultColor).append(signal.getResult()).append(RESET);
         });
