@@ -27,7 +27,6 @@ public class WaveTrader implements Trader {
 
     public static final List<String> symbols = List.of("FTMUSDT", "AVAXUSDT", "ADAUSDT", "GMTUSDT", "DOTUSDT", "1INCHUSDT", "NEARUSDT", "TONUSDT");
     private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE);
-    //private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE, MarketInterval.FIVE_MINUTES);
 
     private final HistoricalDataCollector historicalDataCollector;
     private IndicatorAnalyzer indicatorAnalyzer;
@@ -35,6 +34,9 @@ public class WaveTrader implements Trader {
     private final RiskManager riskManager;
     private final List<StrategyManager> strategyManagers;
     private final BybitClient bybitClient;
+
+    private static final int REQUEST_INTERVAL = 5; // Запросить баланс каждые 5 проверок
+    private int checkCounter = 0; // Счетчик проверок
 
     /**
      * Текущий баланс бота в USDT, обновляется после исполнения ордера или его создания
@@ -84,7 +86,11 @@ public class WaveTrader implements Trader {
         }
 
         if (balance.doubleValue() < 5) {
-            balance = bybitClient.getBalance();
+            if (checkCounter == 0 || checkCounter++ >= REQUEST_INTERVAL) {
+                balance = bybitClient.getBalance();
+                checkCounter = 1; // Сброс счетчика после обновления баланса
+            }
+
             log.info("Balance is less than 5 USDT, current: {}", balance);
         } else {
             log.info("Balance: {}", balance);
@@ -96,7 +102,7 @@ public class WaveTrader implements Trader {
             LogUtils.logAnalysis(indicatorsAnalysisResult);
 
             // Анализ пин-баров для конкретного символа
-            List<PinBarSignal> pinBarAnalysisResult = PinBarDetector.analyze(symbols, intervals, historicalDataCollector.getKlineCache());
+            List<PinBarSignal> pinBarAnalysisResult = PinBarDetector.analyze(symbol, intervals, historicalDataCollector.getKlineCache());
             LogUtils.logPinBarSignals(pinBarAnalysisResult);
 
             // Анализ рынка стратегией возможно ИИ для конкретного символа

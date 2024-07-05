@@ -11,10 +11,9 @@ import java.util.Map;
 
 public class PinBarDetector {
 
-    public static List<PinBarSignal> analyze(List<String> symbols, List<MarketInterval> intervals, Map<String, Map<MarketInterval, List<KlineElement>>> klineCache) {
+    public static List<PinBarSignal> analyze(String symbol, List<MarketInterval> intervals, Map<String, Map<MarketInterval, List<KlineElement>>> klineCache) {
         List<PinBarSignal> signals = new ArrayList<>();
 
-        for (String symbol : symbols) {
             Map<MarketInterval, List<KlineElement>> intervalMap = klineCache.get(symbol);
 
             if (intervalMap != null) {
@@ -26,7 +25,6 @@ public class PinBarDetector {
                         signals.add(new PinBarSignal(symbol, klineElement.getClosePrice().doubleValue(), interval, result, klineElement.getVolume()));
                     }
                 }
-            }
         }
 
         return signals;
