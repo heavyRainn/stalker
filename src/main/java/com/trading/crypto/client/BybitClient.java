@@ -6,13 +6,13 @@ import com.bybit.api.client.domain.TradeOrderType;
 import com.bybit.api.client.domain.account.AccountType;
 import com.bybit.api.client.domain.account.request.AccountDataRequest;
 import com.bybit.api.client.domain.market.request.MarketDataRequest;
+import com.bybit.api.client.domain.position.request.PositionDataRequest;
 import com.bybit.api.client.domain.trade.TimeInForce;
 import com.bybit.api.client.domain.trade.request.TradeOrderRequest;
-import com.bybit.api.client.restApi.BybitApiAccountRestClient;
-import com.bybit.api.client.restApi.BybitApiAsyncTradeRestClient;
-import com.bybit.api.client.restApi.BybitApiCallback;
-import com.bybit.api.client.restApi.BybitApiMarketRestClient;
+import com.bybit.api.client.exception.BybitApiException;
+import com.bybit.api.client.restApi.*;
 import com.bybit.api.client.service.BybitApiClientFactory;
+import com.trading.crypto.model.PositionInfo;
 import com.trading.crypto.model.Trade;
 import com.trading.crypto.util.StalkerUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +34,7 @@ public class BybitClient {
     private final BybitApiAccountRestClient apiRestClient;
     private final BybitApiAsyncTradeRestClient tradeRestClient;
     private final BybitApiMarketRestClient marketRestClient;
+    private final BybitApiPositionRestClient positionRestClient;
 
     /**
      * Конструктор BybitClient. Инициализирует API клиент Bybit.
@@ -42,16 +43,17 @@ public class BybitClient {
      * @param apiSecret Секретный ключ для доступа к Bybit API.
      */
     public BybitClient(@Value("${bybit.api.key}") String apiKey, @Value("${bybit.api.secret}") String apiSecret) {
-
         if (apiKey == null || apiKey.isEmpty() || apiSecret == null || apiSecret.isEmpty()) {
             this.apiRestClient = null;
             this.tradeRestClient = null;
             this.marketRestClient = null;
+            this.positionRestClient = null;
         } else {
             var factory = BybitApiClientFactory.newInstance(apiKey, apiSecret, BybitApiConfig.MAINNET_DOMAIN, false);
             this.apiRestClient = factory.newAccountRestClient();
             this.tradeRestClient = factory.newAsyncTradeRestClient();
             this.marketRestClient = factory.newMarketDataRestClient();
+            this.positionRestClient = factory.newPositionRestClient();
         }
     }
 
@@ -154,6 +156,28 @@ public class BybitClient {
         } catch (Exception e) {
             log.error("Exception while placing limit order for symbol: {}", trade.getSymbol(), e);
             return false;
+        }
+    }
+
+    // https://bybit-exchange.github.io/docs/v5/position
+    public PositionInfo getPositionInfoByOrderId(String orderId) {
+        if (positionRestClient == null) {
+            log.error("PositionRestClient is not initialized.");
+            return null;
+        }
+
+        try {
+            PositionDataRequest request = PositionDataRequest.builder()
+                    .orderId(orderId)
+                    .category(CategoryType.LINEAR)
+                    .build();
+
+            PositionInfo positionInfo = (PositionInfo) positionRestClient.getPositionInfo(request);
+            log.info("Position Info: {}", positionInfo);
+            return positionInfo;
+        } catch (BybitApiException e) {
+            log.error("Exception while fetching position info for order ID: {}", orderId, e);
+            return null;
         }
     }
 

@@ -85,16 +85,9 @@ public class WaveTrader implements Trader {
             return;
         }
 
-        if (balance.doubleValue() < 5) {
-            if (checkCounter == 0 || checkCounter++ >= REQUEST_INTERVAL) {
-                balance = bybitClient.getBalance();
-                checkCounter = 1; // Сброс счетчика после обновления баланса
-            }
+        refreshValance();
 
-            log.info("Balance is less than 5 USDT, current: {}", balance);
-        } else {
-            log.info("Balance: {}", balance);
-        }
+        log.info("Balance: {}", balance);
 
         for (String symbol : symbols) {
             // Анализ данных индикаторов для конкретного символа
@@ -115,17 +108,13 @@ public class WaveTrader implements Trader {
 
             if (signals.isEmpty()) {
                 log.info("Haunting....");
+                refreshValance();
                 continue;
             }
 
             log.info("------------------------------- Signals for symbol: " + symbol + " -----------------------------------------------/");
             //LogUtils.logTradeSignals(signals);
             //LogUtils.logTradeSignalsToFile(signals);
-
-            if (balance.doubleValue() < 5) {
-                log.info("Balance is less than 5 USDT, current: {}. Return", balance);
-                return;
-            }
 
             // Оценка рисков для выставления сделки для конкретного символа
             Map<TradeSignal, RiskEvaluation> riskEvaluations = riskManager.evaluateRisk(signals, indicatorsAnalysisResult, balance);
@@ -138,6 +127,11 @@ public class WaveTrader implements Trader {
                     List<TradeSignal> list = List.of(signal);
                     LogUtils.logTradeSignals(list);
                     LogUtils.logTradeSignalsToFile(list);
+
+                    if (balance.doubleValue() < 5) {
+                        log.info("Balance is less than 5 USDT, current: {}. Return", balance);
+                        return;
+                    }
 
                     Trade trade = riskManager.evaluateAndPrepareTrade(signal, evaluation, balance);
                     log.info("RiskManager give trade {}", trade);
@@ -164,5 +158,11 @@ public class WaveTrader implements Trader {
         }
     }
 
-
+    private void refreshValance() {
+        if (checkCounter == 0 || checkCounter++ >= REQUEST_INTERVAL) {
+            balance = bybitClient.getBalance();
+            checkCounter = 1; // Сброс счетчика после обновления баланса
+        }
+    }
+    
 }

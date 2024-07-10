@@ -81,13 +81,23 @@ public class HistoricalDataCollector implements DataCollector {
     @Scheduled(fixedRate = 1800000) // 1800000 миллисекунд = 30 минут
     public void cleanAndSortKlineCache() {
         // Проходим по каждому символу
-        for (Map<MarketInterval, List<KlineElement>> intervalMap : klineCache.values()) {
+        for (Map.Entry<String, Map<MarketInterval, List<KlineElement>>> symbolEntry : klineCache.entrySet()) {
+            String symbol = symbolEntry.getKey();
+            Map<MarketInterval, List<KlineElement>> intervalMap = symbolEntry.getValue();
+
             // Для каждого интервала обрабатываем список KlineElements
-            for (List<KlineElement> intervalKlineCache : intervalMap.values()) {
-                synchronized (klineCache) {
-                    // Ограничение размера списка до 250 элементов, если необходимо
-                    if (intervalKlineCache.size() > 250) {
+            for (Map.Entry<MarketInterval, List<KlineElement>> intervalEntry : intervalMap.entrySet()) {
+                MarketInterval interval = intervalEntry.getKey();
+                List<KlineElement> intervalKlineCache = intervalEntry.getValue();
+
+                if (intervalKlineCache.size() > 250) {
+                    synchronized (intervalKlineCache) {
+                        // Ограничение размера списка до 250 элементов, если необходимо
+                        int originalSize = intervalKlineCache.size();
                         intervalKlineCache.subList(250, intervalKlineCache.size()).clear();
+                        int newSize = intervalKlineCache.size();
+                        log.info("Cleared {} old Kline elements for symbol: {}, interval: {}. Original size: {}, new size: {}",
+                                originalSize - newSize, symbol, interval, originalSize, newSize);
                     }
                 }
             }

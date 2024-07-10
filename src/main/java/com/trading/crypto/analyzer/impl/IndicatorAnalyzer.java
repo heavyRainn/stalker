@@ -4,14 +4,12 @@ import com.bybit.api.client.domain.market.MarketInterval;
 import com.trading.crypto.analyzer.Analyser;
 import com.trading.crypto.model.AnalysisResult;
 import com.trading.crypto.model.KlineElement;
-import com.trading.crypto.model.PinBarSignal;
 import com.trading.crypto.model.Signal;
 import com.trading.crypto.util.LogUtils;
 import com.trading.crypto.util.StalkerUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.ta4j.core.Bar;
 import org.ta4j.core.BaseTimeSeries;
-import org.ta4j.core.Indicator;
 import org.ta4j.core.TimeSeries;
 import org.ta4j.core.indicators.CCIIndicator;
 import org.ta4j.core.indicators.RSIIndicator;
@@ -38,13 +36,13 @@ import java.util.stream.IntStream;
 public class IndicatorAnalyzer implements Analyser {
 
     // Константы для границ CCI и RSI
-    public static final int CCI_LOW = -200;
-    public static final int CCI_HIGH = 200;
+    public static final int CCI_LOW = -210;
+    public static final int CCI_HIGH = 210;
     public static final int RSI_LOW = 25;
     public static final int RSI_HIGH = 75;
 
     // Период для проверки дивергенций
-    private static final int CHECK_PERIOD = 20;
+    private static final int CHECK_PERIOD = 7;
 
     // Карты для хранения временных рядов и индикаторов для каждого символа и временного интервала
     private final Map<String, Map<MarketInterval, TimeSeries>> seriesMap = new HashMap<>();
@@ -162,11 +160,18 @@ public class IndicatorAnalyzer implements Analyser {
 
             boolean isPriceAboveSMA = lastPrice.isGreaterThan(lastSMA);
 
-            // Проверка дивергенций
-            boolean bullishRsiDivergence = checkBullishDivergence(series, rsi, lastIndex);
-            boolean bearishRsiDivergence = checkBearishDivergence(series, rsi, lastIndex);
-            boolean bullishCciDivergence = checkBullishDivergence(series, cci, lastIndex);
-            boolean bearishCciDivergence = checkBearishDivergence(series, cci, lastIndex);
+            ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
+
+            // Использование ConvergenceDivergenceIndicator для определения дивергенций
+            ConvergenceDivergenceIndicator cciPositiveDivergent = new ConvergenceDivergenceIndicator(closePrice, cci, CHECK_PERIOD, ConvergenceDivergenceType.positiveDivergent);
+            ConvergenceDivergenceIndicator cciNegativeDivergent = new ConvergenceDivergenceIndicator(closePrice, cci, CHECK_PERIOD, ConvergenceDivergenceType.negativeDivergent);
+            ConvergenceDivergenceIndicator rsiPositiveDivergent = new ConvergenceDivergenceIndicator(closePrice, rsi, CHECK_PERIOD, ConvergenceDivergenceType.positiveDivergent);
+            ConvergenceDivergenceIndicator rsiNegativeDivergent = new ConvergenceDivergenceIndicator(closePrice, rsi, CHECK_PERIOD, ConvergenceDivergenceType.negativeDivergent);
+
+            boolean bullishCciDivergence = cciPositiveDivergent.getValue(lastIndex);
+            boolean bearishCciDivergence = cciNegativeDivergent.getValue(lastIndex);
+            boolean bullishRsiDivergence = rsiPositiveDivergent.getValue(lastIndex);
+            boolean bearishRsiDivergence = rsiNegativeDivergent.getValue(lastIndex);
 
             // Логирование анализа перед принятием решений
             LogUtils.logAnalysis(symbol, interval, lastPrice, lastRSI, lastCCI, lastSMA, isPriceAboveSMA, bullishRsiDivergence,
@@ -192,45 +197,5 @@ public class IndicatorAnalyzer implements Analyser {
             return new Signal(signal, symbol, lastPrice, System.currentTimeMillis(), interval);
         }
         return null;
-    }
-
-    private boolean checkBullishDivergence(TimeSeries series, Indicator<Num> indicator, int endIndex) {
-        int startIndex = Math.max(0, endIndex - CHECK_PERIOD);
-        Num lastPrice = series.getBar(endIndex).getClosePrice();
-        Num minPrice = lastPrice;
-        Num minIndicator = indicator.getValue(endIndex);
-
-        for (int i = startIndex; i < endIndex; i++) {
-            Num currentPrice = series.getBar(i).getClosePrice();
-            Num currentIndicator = indicator.getValue(i);
-            if (currentPrice.isLessThan(minPrice)) {
-                minPrice = currentPrice;
-            }
-            if (currentIndicator.isLessThan(minIndicator)) {
-                minIndicator = currentIndicator;
-            }
-        }
-
-        return lastPrice.isGreaterThan(minPrice) && indicator.getValue(endIndex).isLessThan(minIndicator);
-    }
-
-    private boolean checkBearishDivergence(TimeSeries series, Indicator<Num> indicator, int endIndex) {
-        int startIndex = Math.max(0, endIndex - CHECK_PERIOD);
-        Num lastPrice = series.getBar(endIndex).getClosePrice();
-        Num maxPrice = lastPrice;
-        Num maxIndicator = indicator.getValue(endIndex);
-
-        for (int i = startIndex; i < endIndex; i++) {
-            Num currentPrice = series.getBar(i).getClosePrice();
-            Num currentIndicator = indicator.getValue(i);
-            if (currentPrice.isGreaterThan(maxPrice)) {
-                maxPrice = currentPrice;
-            }
-            if (currentIndicator.isGreaterThan(maxIndicator)) {
-                maxIndicator = currentIndicator;
-            }
-        }
-
-        return lastPrice.isLessThan(maxPrice) && indicator.getValue(endIndex).isGreaterThan(maxIndicator);
     }
 }

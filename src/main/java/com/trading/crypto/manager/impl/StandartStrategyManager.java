@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -88,36 +89,45 @@ public class StandartStrategyManager implements StrategyManager {
     }
 
     /**
-     * Проверяет, превышает ли текущий объем средний объем за последние n свечей.
+     * Проверяет, превышает ли текущий объем средний и медианный объемы за все доступные свечи.
      *
      * @param volume   текущий объем.
      * @param symbol   торговый символ.
      * @param interval временной интервал.
-     * @return true, если объем превышает средний объем за последние n свечей, иначе false.
+     * @return true, если объем превышает медианный и средний объемы за все доступные свечи, иначе false.
      */
     public boolean isHighVolume(BigDecimal volume, String symbol, MarketInterval interval) {
+        double volumeThresholdMultiplier = 1.5; // Коэффициент для проверки повышенного объема (50% выше среднего)
+
         List<KlineElement> klines = dataCollector.getKlineCache().get(symbol).get(interval);
 
-        if (klines == null || klines.size() < 5) {
+        if (klines == null || klines.isEmpty()) {
             log.warn("Not enough data for symbol: {} and interval: {}", symbol, interval);
             return false; // Если нет данных, возвращаем false
         }
 
-        List<KlineElement> recentKlines = klines.subList(0, 5);
-
         BigDecimal totalVolume = BigDecimal.ZERO;
-        for (KlineElement kline : recentKlines) {
-            totalVolume = totalVolume.add(kline.getVolume());
+        List<BigDecimal> volumes = new ArrayList<>();
+
+        for (KlineElement kline : klines) {
+            BigDecimal klineVolume = kline.getVolume();
+            totalVolume = totalVolume.add(klineVolume);
+            volumes.add(klineVolume);
         }
 
-        BigDecimal averageVolume = totalVolume.divide(BigDecimal.valueOf(recentKlines.size()), BigDecimal.ROUND_HALF_UP);
-        boolean isHighVolume = volume.compareTo(averageVolume) > 0;
+        int numCandles = klines.size();
+        BigDecimal averageVolume = totalVolume.divide(BigDecimal.valueOf(numCandles), BigDecimal.ROUND_HALF_UP);
+        BigDecimal thresholdVolume = averageVolume.multiply(BigDecimal.valueOf(volumeThresholdMultiplier));
 
-        log.info("Volume check for symbol: {}, interval: {} - Current Volume: {}, Average Volume: {}, High Volume: {}",
-                symbol, interval, volume, averageVolume, isHighVolume);
+        Collections.sort(volumes);
+        BigDecimal medianVolume = volumes.get(numCandles / 2);
+
+        boolean isHighVolume = volume.compareTo(thresholdVolume) > 0 && volume.compareTo(medianVolume) > 0;
+
+        log.info("Volume check for symbol: {}, interval: {} - Current Volume: {}, Average Volume: {}, Median Volume: {}, Threshold Volume: {}, High Volume: {}",
+                symbol, interval, volume, averageVolume, medianVolume, thresholdVolume, isHighVolume);
 
         return isHighVolume;
     }
-
 
 }
