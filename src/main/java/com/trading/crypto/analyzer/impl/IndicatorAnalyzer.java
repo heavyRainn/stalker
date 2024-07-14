@@ -38,8 +38,8 @@ public class IndicatorAnalyzer implements Analyser {
     // Константы для границ CCI и RSI
     public static final int CCI_LOW = -210;
     public static final int CCI_HIGH = 210;
-    public static final int RSI_LOW = 25;
-    public static final int RSI_HIGH = 75;
+    public static final int RSI_LOW = 22;
+    public static final int RSI_HIGH = 78;
 
     // Период для проверки дивергенций
     private static final int CHECK_PERIOD = 7;

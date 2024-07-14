@@ -91,6 +91,7 @@ public class StandartRiskManager implements RiskManager {
         }
 
         return new Trade(
+                null,
                 signal.getSymbol(),
                 roundToThreeDecimalPlaces(signal.getEntryPrice()),
                 roundToThreeDecimalPlaces(stopLoss),
@@ -121,8 +122,8 @@ public class StandartRiskManager implements RiskManager {
     /**
      * Рассчитывает количество лотов для торговли на основе баланса и цены входа.
      *
-     * @param symbol символ валютной пары.
-     * @param balance текущий баланс.
+     * @param symbol     символ валютной пары.
+     * @param balance    текущий баланс.
      * @param entryPrice цена входа.
      * @return количество лотов для торговли.
      */

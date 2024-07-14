@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -18,23 +19,34 @@ public class OrderExecutorService implements OrderExecutor {
     private BybitClient bybitClient;
 
     @Override
-    public void executeOrder(Trade trade) {
+    public CompletableFuture<String> executeOrder(Trade trade) {
+        CompletableFuture<String> futureOrderId = new CompletableFuture<>();
         try {
             // Получаем текущую цену актива
             BigDecimal currentPrice = bybitClient.getCurrentPrice(trade.getSymbol());
             trade.setEntryPrice(currentPrice.doubleValue());
             adjustStopLossAndTakeProfit(trade);
 
-            // Выставляем лимитную заявку на покупку
-            boolean orderResult = bybitClient.placeLimitOrder(trade);
-            if (orderResult) {
-                log.info("Limit order placed successfully for symbol: {}", trade.getSymbol());
-            } else {
-                log.error("Failed to place limit order for symbol: {}", trade.getSymbol());
-            }
+            // Выставляем лимитную заявку на покупку и получаем ID ордера
+            bybitClient.placeLimitOrder(trade).thenAccept(orderId -> {
+                if (orderId != null) {
+                    log.info("Limit order placed successfully for symbol: {}, orderId:{}", trade.getSymbol(), orderId);
+                    futureOrderId.complete(orderId);
+                } else {
+                    log.error("Failed to place limit order for symbol: {}", trade.getSymbol());
+                    futureOrderId.complete(null);
+                }
+            }).exceptionally(ex -> {
+                log.error("Error executing order for symbol: {}", trade.getSymbol(), ex);
+                futureOrderId.completeExceptionally(ex);
+                return null;
+            });
         } catch (Exception e) {
             log.error("Error executing order for symbol: {}", trade.getSymbol(), e);
+            futureOrderId.completeExceptionally(e);
         }
+
+        return futureOrderId;
     }
 
     public void adjustStopLossAndTakeProfit(Trade trade) {

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * BybitClient - класс для взаимодействия с Bybit API для получения данных аккаунта.
@@ -81,7 +82,7 @@ public class BybitClient {
                 if (list != null) {
                     for (Map<String, Object> balanceInfo : list) {
                         List<Map<String, Object>> coins = (List) balanceInfo.get("coin");
-                        for (Map<String, Object> map: coins) {
+                        for (Map<String, Object> map : coins) {
                             if ("USDT".equals(map.get("coin"))) {
                                 return new BigDecimal((String) map.get("availableToWithdraw"));
                             }
@@ -138,25 +139,50 @@ public class BybitClient {
         }
     }
 
-    public boolean placeLimitOrder(Trade trade) {
+    public CompletableFuture<String> placeLimitOrder(Trade trade) {
+        CompletableFuture<String> futureOrderId = new CompletableFuture<>();
         try {
             TradeOrderRequest orderRequest = createTradeOrderRequest(trade);
+
             tradeRestClient.createOrder(orderRequest, new BybitApiCallback<>() {
                 @Override
                 public void onResponse(Object response) {
                     log.info("Order placed successfully: {}", response);
+
+                    // Предполагаем, что response содержит ID ордера
+                    if (response instanceof Map) {
+                        Map<String, Object> responseMap = (Map<String, Object>) response;
+                        if (responseMap.containsKey("result")) {
+                            Map<String, Object> result = (Map<String, Object>) responseMap.get("result");
+                            String orderId = (String) result.get("orderId");
+                            if (orderId != null && !orderId.isEmpty()) {
+                                futureOrderId.complete(orderId);
+                            } else {
+                                log.error("Order ID not found in response");
+                                futureOrderId.complete(null);
+                            }
+                        } else {
+                            log.error("Result not found in response");
+                            futureOrderId.complete(null);
+                        }
+                    } else {
+                        log.error("Unexpected response format");
+                        futureOrderId.complete(null);
+                    }
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
                     log.error("Failed to place order for symbol: {}", trade.getSymbol(), throwable);
+                    futureOrderId.completeExceptionally(throwable);
                 }
             });
-            return true;
         } catch (Exception e) {
             log.error("Exception while placing limit order for symbol: {}", trade.getSymbol(), e);
-            return false;
+            futureOrderId.completeExceptionally(e);
         }
+
+        return futureOrderId;
     }
 
     // https://bybit-exchange.github.io/docs/v5/position
@@ -177,6 +203,27 @@ public class BybitClient {
             return positionInfo;
         } catch (BybitApiException e) {
             log.error("Exception while fetching position info for order ID: {}", orderId, e);
+            return null;
+        }
+    }
+
+    // https://bybit-exchange.github.io/docs/v5/position
+    public PositionInfo getPositionsInfo() {
+        if (positionRestClient == null) {
+            log.error("PositionRestClient is not initialized.");
+            return null;
+        }
+
+        try {
+            PositionDataRequest request = PositionDataRequest.builder()
+                    .category(CategoryType.LINEAR)
+                    .build();
+
+            PositionInfo positionInfo = (PositionInfo) positionRestClient.getPositionInfo(request);
+            log.info("Positions Info: {}", positionInfo);
+            return positionInfo;
+        } catch (BybitApiException e) {
+            log.error("Exception while fetching positions: {}", e);
             return null;
         }
     }

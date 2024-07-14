@@ -87,7 +87,6 @@ public class StandartStrategyManager implements StrategyManager {
 
         return tradeSignals;
     }
-
     /**
      * Проверяет, превышает ли текущий объем средний и медианный объемы за все доступные свечи.
      *
@@ -97,7 +96,8 @@ public class StandartStrategyManager implements StrategyManager {
      * @return true, если объем превышает медианный и средний объемы за все доступные свечи, иначе false.
      */
     public boolean isHighVolume(BigDecimal volume, String symbol, MarketInterval interval) {
-        double volumeThresholdMultiplier = 1.5; // Коэффициент для проверки повышенного объема (50% выше среднего)
+        double volumeThresholdMultiplier = 0.5; // Коэффициент для проверки повышенного объема (100% выше среднего)
+        double stdDevMultiplier = 0.1; // Коэффициент для проверки объема выше стандартного отклонения
 
         List<KlineElement> klines = dataCollector.getKlineCache().get(symbol).get(interval);
 
@@ -117,17 +117,28 @@ public class StandartStrategyManager implements StrategyManager {
 
         int numCandles = klines.size();
         BigDecimal averageVolume = totalVolume.divide(BigDecimal.valueOf(numCandles), BigDecimal.ROUND_HALF_UP);
-        BigDecimal thresholdVolume = averageVolume.multiply(BigDecimal.valueOf(volumeThresholdMultiplier));
+
+        // Рассчитываем стандартное отклонение объема
+        BigDecimal variance = BigDecimal.ZERO;
+        for (BigDecimal vol : volumes) {
+            BigDecimal diff = vol.subtract(averageVolume);
+            variance = variance.add(diff.multiply(diff));
+        }
+        BigDecimal stdDev = new BigDecimal(Math.sqrt(variance.divide(BigDecimal.valueOf(numCandles), BigDecimal.ROUND_HALF_UP).doubleValue()));
+
+        // Пороговый объем с учетом среднего объема и стандартного отклонения
+        BigDecimal thresholdVolume = averageVolume.multiply(BigDecimal.valueOf(volumeThresholdMultiplier)).add(stdDev.multiply(BigDecimal.valueOf(stdDevMultiplier)));
 
         Collections.sort(volumes);
         BigDecimal medianVolume = volumes.get(numCandles / 2);
 
         boolean isHighVolume = volume.compareTo(thresholdVolume) > 0 && volume.compareTo(medianVolume) > 0;
 
-        log.info("Volume check for symbol: {}, interval: {} - Current Volume: {}, Average Volume: {}, Median Volume: {}, Threshold Volume: {}, High Volume: {}",
-                symbol, interval, volume, averageVolume, medianVolume, thresholdVolume, isHighVolume);
+        log.info("Volume check for symbol: {}, interval: {} - Current Volume: {}, Average Volume: {}, Median Volume: {}, Threshold Volume: {}, Std Dev: {}, High Volume: {}",
+                symbol, interval, volume, averageVolume, medianVolume, thresholdVolume, stdDev, isHighVolume);
 
         return isHighVolume;
     }
+
 
 }

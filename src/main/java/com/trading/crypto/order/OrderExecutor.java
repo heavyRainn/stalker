@@ -2,6 +2,8 @@ package com.trading.crypto.order;
 
 import com.trading.crypto.model.Trade;
 
+import java.util.concurrent.CompletableFuture;
+
 public interface OrderExecutor {
-    void executeOrder(Trade trade);
+    CompletableFuture<String> executeOrder(Trade trade);
 }

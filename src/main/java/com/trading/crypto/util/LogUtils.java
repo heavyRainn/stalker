@@ -78,6 +78,33 @@ public class LogUtils {
     }
 
     /**
+     * Method to log active orders
+     *
+     * @param trade активная сделка
+     * @param pnlPercentage процент прибыли или убытка
+     */
+    public static void logActiveTrade(Trade trade, double pnlPercentage) {
+        if (trade == null) {
+            return;
+        }
+
+        // Determine color based on PnL percentage
+        String pnlColor = pnlPercentage >= 0 ? GREEN : RED;
+
+        log.info("\n{}================ Active Trade ================{}", YELLOW, RESET);
+        log.info("{}Order ID: {}{}{} Symbol: {}{}{} PNL: {}% {} Entry Price: {}{}{} SL: {}{}{} TP: {}{}{} Amount: {}{}{} Side: {}",
+                BLUE, trade.getOrderId(), RESET,
+                YELLOW, trade.getSymbol(), RESET,
+                pnlColor, pnlPercentage, RESET,
+                CYAN, trade.getEntryPrice(), RESET,
+                RED, trade.getStopLoss(), RESET,
+                PURPLE, trade.getTakeProfit(), RESET,
+                CYAN, trade.getAmount(), RESET,
+                MAGENTA, trade.getSide(), RESET);
+        log.info("{}================================================{}", YELLOW, RESET);
+    }
+
+    /**
      * Форматирование метки времени для логирования
      *
      * @param timestamp - метка времени
@@ -104,7 +131,8 @@ public class LogUtils {
             File file = new File(symbol + "_signals.json");
             if (file.exists()) {
                 try {
-                    existingSignals = mapper.readValue(file, new TypeReference<>() {});
+                    existingSignals = mapper.readValue(file, new TypeReference<>() {
+                    });
                 } catch (IOException e) {
                     System.err.println("Ошибка при чтении файла: " + e.getMessage());
                 }
@@ -135,7 +163,8 @@ public class LogUtils {
         // Считываем существующие сделки из файла, если файл существует
         if (file.exists()) {
             try {
-                existingTrades = mapper.readValue(file, new TypeReference<>() {});
+                existingTrades = mapper.readValue(file, new TypeReference<>() {
+                });
             } catch (IOException e) {
                 System.err.println("Ошибка при чтении файла: " + e.getMessage());
             }

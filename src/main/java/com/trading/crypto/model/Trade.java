@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Trade {
+    private String orderId;
     private String symbol;
     private double entryPrice;
     private double stopLoss;

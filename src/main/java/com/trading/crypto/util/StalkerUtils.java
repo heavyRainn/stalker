@@ -17,7 +17,7 @@ import java.util.*;
 public class StalkerUtils {
 
     // Список символов, для которых округляем amount до целого числа
-    private static final Set<String> WHOLE_NUMBER_SYMBOLS = new HashSet<>(Arrays.asList("FTMUSDT", "GMTUSDT", "ADAUSDT"));
+    private static final Set<String> WHOLE_NUMBER_SYMBOLS = new HashSet<>(Arrays.asList("FTMUSDT", "GMTUSDT", "ADAUSDT", "1000PEPEUSDT", "NOTUSDT", "PEOPLEUSDT"));
 
     public static BaseBar convertToBaseBar(KlineElement klineElement) {
         return new BaseBar(
@@ -36,7 +36,8 @@ public class StalkerUtils {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> map;
         try {
-            map = mapper.readValue(mapper.writeValueAsString(response), new TypeReference<LinkedHashMap<String, Object>>() {});
+            map = mapper.readValue(mapper.writeValueAsString(response), new TypeReference<LinkedHashMap<String, Object>>() {
+            });
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -61,5 +62,19 @@ public class StalkerUtils {
         BigDecimal amountBigDecimal = BigDecimal.valueOf(amount).setScale(newScale, RoundingMode.DOWN);
         amountBigDecimal = amountBigDecimal.stripTrailingZeros();
         return amountBigDecimal.toPlainString();
+    }
+
+    /**
+     * Подсчет прибыли в процентах
+     *
+     * @param unrealizedPnl прибыль в токенах
+     * @param entryPrice    цена входа
+     * @param positionQty
+     * @return
+     */
+    public static double calculatePnLPercentage(BigDecimal unrealizedPnl, BigDecimal entryPrice, BigDecimal positionQty) {
+        BigDecimal initialPositionValue = entryPrice.multiply(positionQty);
+        BigDecimal pnlPercentage = unrealizedPnl.divide(initialPositionValue, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+        return pnlPercentage.doubleValue();
     }
 }
