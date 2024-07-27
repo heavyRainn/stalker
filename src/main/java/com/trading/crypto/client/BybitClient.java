@@ -139,6 +139,65 @@ public class BybitClient {
         }
     }
 
+    /**
+     * Обновляет существующий ордер на Bybit с новыми параметрами.
+     *
+     * @param trade Объект Trade с новыми значениями Take Profit и Stop Loss.
+     * @return CompletableFuture с идентификатором обновленного ордера или исключением, если обновление не удалось.
+     */
+    public CompletableFuture<String> updateOrder(Trade trade) {
+        CompletableFuture<String> futureOrderId = new CompletableFuture<>();
+        try {
+            // Создаем запрос на обновление ордера
+            TradeOrderRequest updateRequest = TradeOrderRequest.builder()
+                    .orderId(trade.getOrderId())
+                    .symbol(trade.getSymbol())
+                    .takeProfit(String.valueOf(trade.getTakeProfit()))
+                    .stopLoss(String.valueOf(trade.getStopLoss()))
+                    .build();
+
+            // Отправляем запрос на обновление ордера
+            tradeRestClient.amendOrder(updateRequest, new BybitApiCallback<>() {
+                @Override
+                public void onResponse(Object response) {
+                    log.info("Order updated successfully: {}", response);
+
+                    // Проверяем ответ на наличие ID ордера
+                    if (response instanceof Map) {
+                        Map<String, Object> responseMap = (Map<String, Object>) response;
+                        if (responseMap.containsKey("result")) {
+                            Map<String, Object> result = (Map<String, Object>) responseMap.get("result");
+                            String orderId = (String) result.get("orderId");
+                            if (orderId != null && !orderId.isEmpty()) {
+                                futureOrderId.complete(orderId);
+                            } else {
+                                log.error("Order ID not found in response");
+                                futureOrderId.complete(null);
+                            }
+                        } else {
+                            log.error("Result not found in response");
+                            futureOrderId.complete(null);
+                        }
+                    } else {
+                        log.error("Unexpected response format");
+                        futureOrderId.complete(null);
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    log.error("Failed to update order for symbol: {}", trade.getSymbol(), throwable);
+                    futureOrderId.completeExceptionally(throwable);
+                }
+            });
+        } catch (Exception e) {
+            log.error("Exception while updating order for symbol: {}", trade.getSymbol(), e);
+            futureOrderId.completeExceptionally(e);
+        }
+
+        return futureOrderId;
+    }
+
     public CompletableFuture<String> placeLimitOrder(Trade trade) {
         CompletableFuture<String> futureOrderId = new CompletableFuture<>();
         try {

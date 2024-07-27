@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @Component
 public class WaveTrader implements Trader {
 
-    public static final List<String> symbols = List.of("FTMUSDT", "AVAXUSDT", "ADAUSDT", "DOGEUSDT", "GMTUSDT", "DOTUSDT", "1INCHUSDT", "NEARUSDT", "TONUSDT", "1000PEPEUSDT", "NOTUSDT");
+    public static final List<String> symbols = List.of("FTMUSDT", "AVAXUSDT", "ADAUSDT", "DOGEUSDT", "GMTUSDT", "DOTUSDT", "1INCHUSDT", "NEARUSDT", "TONUSDT", "1000PEPEUSDT", "NOTUSDT", "OPUSDT");
     private final List<MarketInterval> intervals = List.of(MarketInterval.ONE_MINUTE);
 
     private final HistoricalDataCollector historicalDataCollector;

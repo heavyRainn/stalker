@@ -92,7 +92,7 @@ public class LogUtils {
         String pnlColor = pnlPercentage >= 0 ? GREEN : RED;
 
         log.info("\n{}================ Active Trade ================{}", YELLOW, RESET);
-        log.info("{}Order ID: {}{}{} Symbol: {}{}{} PNL: {}% {} Entry Price: {}{}{} SL: {}{}{} TP: {}{}{} Amount: {}{}{} Side: {}",
+        log.info("{}Order ID: {}{}{} Symbol: {}{}{} PNL: {}% {} \nEntry Price: {}{}{} SL: {}{}{} TP: {}{}{} Amount: {}{}{} Side: {}{}{}",
                 BLUE, trade.getOrderId(), RESET,
                 YELLOW, trade.getSymbol(), RESET,
                 pnlColor, pnlPercentage, RESET,
@@ -101,7 +101,6 @@ public class LogUtils {
                 PURPLE, trade.getTakeProfit(), RESET,
                 CYAN, trade.getAmount(), RESET,
                 MAGENTA, trade.getSide(), RESET);
-        log.info("{}================================================{}", YELLOW, RESET);
     }
 
     /**
